@@ -2,12 +2,16 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { Suspense, useEffect } from "react";
-import { Loader2, Fingerprint, ShieldAlert, Database } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { Loader2, Fingerprint, ShieldAlert, Database, UserPlus, Sparkles, LayoutDashboard, ArrowRight } from "lucide-react";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useRouter } from "next/navigation";
-import { doc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { FamilySettings } from "@/lib/types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 export default function DashboardLayout({
   children,
@@ -17,6 +21,7 @@ export default function DashboardLayout({
   const { user, loading: authLoading } = useUser();
   const db = useFirestore();
   const router = useRouter();
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const settingsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -31,18 +36,31 @@ export default function DashboardLayout({
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    // Only redirect if we are absolutely sure data is missing
-    if (!authLoading && !settingsLoading && user && !settings) {
-      const reason = "no_family_connection";
-      const debugInfo = `uid=${user.uid}&fid=none&reason=${reason}`;
-      console.log("Redirecting to Join. Debug:", debugInfo);
-      router.replace(`/join?reason=${reason}&${debugInfo}`);
-    }
-  }, [user, authLoading, settingsLoading, settings, router]);
+  // Self-Healing Action: Initialize a default family profile for this user
+  const handleInitializeFamily = async () => {
+    if (!db || !user) return;
+    setIsInitializing(true);
+    
+    const settingsData = {
+      adminPin: "1234",
+      familyName: user.displayName || "My Family",
+      ownerId: user.uid,
+      updatedAt: Date.now(),
+      canExport: true
+    };
 
-  // Handle loading states with Debug Info
-  if (authLoading || settingsLoading) {
+    try {
+      await setDoc(doc(db, "settings", user.uid), settingsData);
+      // settings hook will automatically update and clear the setup screen
+    } catch (e) {
+      console.error("Failed to initialize family settings:", e);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  // Handle loading states
+  if (authLoading || (settingsLoading && !settings)) {
     return (
       <div className="flex items-center justify-center h-screen bg-background p-6">
         <div className="max-w-md w-full text-center space-y-6">
@@ -54,30 +72,73 @@ export default function DashboardLayout({
             <p className="text-lg font-headline text-primary animate-pulse">Synchronizing Ledger...</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-black">Verifying Family Access</p>
           </div>
-          
-          {/* Debug Panel */}
-          <div className="bg-slate-50 border border-slate-100 rounded-[2rem] p-6 text-left space-y-3 shadow-inner">
-            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-tight text-slate-400">
-              <span>Diagnostic System</span>
-              <span className="text-emerald-500">Live</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Setup Screen: If logged in but no family connection exists
+  if (user && !settings && !settingsLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-500">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto shadow-xl mb-4">
+               <LayoutDashboard className="w-8 h-8 text-white" />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Fingerprint className="w-4 h-4 text-slate-300" />
-                <div className="overflow-hidden">
-                  <p className="text-[9px] text-slate-400 uppercase font-black">Auth UID</p>
-                  <p className="text-xs font-mono truncate">{user?.uid || 'Authenticating...'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Database className="w-4 h-4 text-slate-300" />
-                <div>
-                  <p className="text-[9px] text-slate-400 uppercase font-black">Settings Status</p>
-                  <p className="text-xs font-bold">{settingsLoading ? 'Fetching Document...' : settings ? 'Found' : 'Missing (Redirecting soon)'}</p>
-                </div>
-              </div>
-            </div>
+            <h1 className="text-4xl font-headline text-primary">Welcome to KinVest</h1>
+            <p className="text-muted-foreground font-medium">Your family ledger is ready for setup.</p>
           </div>
+
+          <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+            <CardHeader className="bg-accent text-white p-8 text-center relative">
+               <CardTitle className="text-2xl font-headline">Finish Account Setup</CardTitle>
+               <CardDescription className="text-accent-foreground/80">Choose how you want to use the app</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <div className="flex items-center gap-3 text-primary">
+                    <Sparkles className="w-5 h-5" />
+                    <h3 className="font-bold">I am the Family Admin</h3>
+                  </div>
+                  <p className="text-xs text-slate-500">Starting a new ledger or restoring an existing admin account.</p>
+                  <Button 
+                    className="w-full h-12 rounded-xl shadow-lg" 
+                    onClick={handleInitializeFamily}
+                    disabled={isInitializing}
+                  >
+                    {isInitializing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <LayoutDashboard className="w-4 h-4 mr-2" />}
+                    Initialize My Dashboard
+                  </Button>
+                </div>
+
+                <div className="relative py-2">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                  <div className="relative flex justify-center text-[10px] font-black uppercase tracking-widest text-slate-300"><span className="bg-white px-4">OR</span></div>
+                </div>
+
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                  <div className="flex items-center gap-3 text-accent">
+                    <UserPlus className="w-5 h-5" />
+                    <h3 className="font-bold">I have an Invite Code</h3>
+                  </div>
+                  <p className="text-xs text-slate-500">Joining a family ledger created by someone else.</p>
+                  <Button variant="outline" className="w-full h-12 rounded-xl border-accent text-accent hover:bg-accent/5" asChild>
+                    <Link href="/join">
+                      Enter 10-Digit Code <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Debug Panel for context */}
+              <div className="bg-slate-900 text-white/40 p-4 rounded-xl text-[9px] font-mono">
+                <p>DIAGNOSTIC ID: {user.uid}</p>
+                <p>STATUS: UNCONNECTED_USER</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -104,16 +165,6 @@ export default function DashboardLayout({
             Retry Connection
           </button>
         </div>
-      </div>
-    );
-  }
-
-  // If we have a user but still no settings after loading, keep showing the loader
-  // while the useEffect redirect kicks in to avoid a flash of empty dashboard.
-  if (user && !settings) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
       </div>
     );
   }
