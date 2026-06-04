@@ -11,13 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save, AlertCircle, Camera, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { collection, addDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useFirestore, useUser, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { compressAndResizeImage } from "@/lib/image-utils";
 
 export default function NewMemberPage() {
   const [name, setName] = useState("");
@@ -27,6 +29,7 @@ export default function NewMemberPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -54,19 +57,33 @@ export default function NewMemberPage() {
       return;
     }
 
-    if (!name.trim()) {
-      setFormError("Member name is required.");
-      return;
-    }
-
     setIsUploading(true);
 
     try {
       let photoUrl = "";
+      
       if (photoFile && storage) {
-        const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}_${photoFile.name}`);
-        const snapshot = await uploadBytes(storageRef, photoFile);
-        photoUrl = await getDownloadURL(snapshot.ref);
+        // 1. COMPRESS AND RESIZE
+        const optimizedBlob = await compressAndResizeImage(photoFile);
+        
+        // 2. RESUMABLE UPLOAD WITH PROGRESS
+        const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}.jpg`);
+        const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
+
+        photoUrl = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            (error) => reject(error),
+            async () => {
+              const url = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(url);
+            }
+          );
+        });
       }
 
       const memberData = {
@@ -78,7 +95,7 @@ export default function NewMemberPage() {
         createdAt: Date.now(),
       };
 
-      // Faster UX: don't await the firestore write if we have the photoUrl
+      // Faster UX: non-blocking firestore write
       addDoc(collection(db, "members"), memberData)
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -89,14 +106,11 @@ export default function NewMemberPage() {
           errorEmitter.emit("permission-error", permissionError);
         });
 
-      toast({ 
-        title: "Member Added!", 
-        description: `${name} added to your family.` 
-      });
+      toast({ title: "Member Added!", description: `${name} is now part of your family.` });
       router.push("/dashboard");
     } catch (error: any) {
       console.error(error);
-      setFormError("Failed to upload photo or save member data.");
+      setFormError("Failed to optimize photo or save member data.");
     } finally {
       setIsUploading(false);
     }
@@ -111,7 +125,7 @@ export default function NewMemberPage() {
       <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-primary text-white p-8">
           <CardTitle className="text-3xl font-headline">Add Member</CardTitle>
-          <CardDescription className="text-primary-foreground/80">Track a new family member's expenses.</CardDescription>
+          <CardDescription className="text-primary-foreground/80">Optimize profile photo for faster family sync.</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           {formError && (
@@ -126,7 +140,7 @@ export default function NewMemberPage() {
             <div className="flex flex-col items-center gap-4 mb-4">
               <div className="relative group">
                 <Avatar className="w-24 h-24 border-4 border-slate-100 shadow-md">
-                  <AvatarImage src={photoPreview || ""} />
+                  <AvatarImage src={photoPreview || ""} className="object-cover" />
                   <AvatarFallback className="bg-primary/5 text-primary text-2xl font-bold">
                     {name ? name.charAt(0) : <Camera className="w-8 h-8 opacity-30" />}
                   </AvatarFallback>
@@ -149,7 +163,15 @@ export default function NewMemberPage() {
                 accept="image/*" 
                 onChange={handlePhotoChange} 
               />
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Profile Photo</p>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Member Photo</p>
+                {isUploading && (
+                   <div className="mt-2 w-32 mx-auto space-y-1">
+                     <Progress value={uploadProgress} className="h-1" />
+                     <p className="text-[10px] text-primary animate-pulse font-bold">{Math.round(uploadProgress)}%</p>
+                   </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -166,7 +188,7 @@ export default function NewMemberPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-semibold">Phone Number (Optional)</Label>
+              <Label htmlFor="phone" className="text-sm font-semibold">Phone Number</Label>
               <Input 
                 id="phone" 
                 type="tel"
@@ -182,7 +204,7 @@ export default function NewMemberPage() {
               <Label htmlFor="notes" className="text-sm font-semibold">Notes</Label>
               <Textarea 
                 id="notes" 
-                placeholder="e.g. Primary contact for house rent..."
+                placeholder="e.g. Family admin access..."
                 className="min-h-[120px] rounded-xl resize-none"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -193,7 +215,7 @@ export default function NewMemberPage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button type="submit" className="flex-1 h-12 text-lg shadow-lg rounded-xl" disabled={isUploading}>
                 {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-                {isUploading ? "Uploading..." : "Quick Save"}
+                {isUploading ? "Optimizing..." : "Quick Save"}
               </Button>
               <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild disabled={isUploading}>
                 <Link href="/dashboard">Cancel</Link>

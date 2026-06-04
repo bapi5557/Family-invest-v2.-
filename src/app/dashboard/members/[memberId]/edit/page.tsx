@@ -11,13 +11,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Loader2, Save, Camera } from "lucide-react";
 import Link from "next/link";
 import { doc, updateDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { useFirestore, useDoc, useMemoFirebase, useStorage } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { FamilyMember } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { compressAndResizeImage } from "@/lib/image-utils";
 
 export default function EditMemberPage() {
   const { memberId } = useParams();
@@ -28,6 +30,7 @@ export default function EditMemberPage() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -69,10 +72,29 @@ export default function EditMemberPage() {
 
     try {
       let finalPhotoUrl = photoUrl;
+      
       if (photoFile && storage) {
-        const storageRef = ref(storage, `member_photos/${memberId}_${Date.now()}_${photoFile.name}`);
-        const snapshot = await uploadBytes(storageRef, photoFile);
-        finalPhotoUrl = await getDownloadURL(snapshot.ref);
+        // 1. COMPRESS AND RESIZE ON CLIENT
+        const optimizedBlob = await compressAndResizeImage(photoFile);
+        
+        // 2. RESUMABLE UPLOAD
+        const storageRef = ref(storage, `member_photos/${memberId}_${Date.now()}.jpg`);
+        const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
+
+        finalPhotoUrl = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            (error) => reject(error),
+            async () => {
+              const url = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(url);
+            }
+          );
+        });
       }
 
       const updateData = { name, phone, notes, photoUrl: finalPhotoUrl };
@@ -88,11 +110,11 @@ export default function EditMemberPage() {
           errorEmitter.emit("permission-error", permissionError);
         });
 
-      toast({ title: "Changes Saved", description: "Member profile updated successfully." });
+      toast({ title: "Profile Updated", description: "Changes optimized and saved instantly." });
       router.push(`/dashboard/members/${memberId}`);
     } catch (error: any) {
       console.error(error);
-      toast({ variant: "destructive", title: "Update Failed", description: "Error uploading photo or saving data." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Could not optimize or upload photo." });
     } finally {
       setIsUploading(false);
     }
@@ -111,14 +133,14 @@ export default function EditMemberPage() {
       <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none">
         <CardHeader className="bg-accent text-white p-8">
           <CardTitle className="text-2xl font-headline">Edit Member</CardTitle>
-          <CardDescription className="text-accent-foreground/80">Update details for {member?.name}</CardDescription>
+          <CardDescription className="text-accent-foreground/80">Updating details for {member?.name}</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="flex flex-col items-center gap-4 mb-4">
               <div className="relative group">
                 <Avatar className="w-24 h-24 border-4 border-slate-100 shadow-md">
-                  <AvatarImage src={photoPreview || photoUrl || ""} />
+                  <AvatarImage src={photoPreview || photoUrl || ""} className="object-cover" />
                   <AvatarFallback className="bg-accent/5 text-accent text-2xl font-bold">
                     {name ? name.charAt(0) : <Camera className="w-8 h-8 opacity-30" />}
                   </AvatarFallback>
@@ -141,7 +163,15 @@ export default function EditMemberPage() {
                 accept="image/*" 
                 onChange={handlePhotoChange} 
               />
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Change Photo</p>
+              <div className="text-center min-h-[30px]">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Change Photo</p>
+                {isUploading && (
+                   <div className="mt-2 w-32 mx-auto space-y-1">
+                     <Progress value={uploadProgress} className="h-1" />
+                     <p className="text-[10px] text-accent font-bold animate-pulse">{Math.round(uploadProgress)}%</p>
+                   </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -178,7 +208,7 @@ export default function EditMemberPage() {
             <div className="flex gap-3 pt-4">
               <Button type="submit" className="flex-1 h-12 text-lg rounded-xl shadow-lg" disabled={isUploading}>
                 {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-                {isUploading ? "Saving..." : "Update Profile"}
+                {isUploading ? "Processing..." : "Update Profile"}
               </Button>
               <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild disabled={isUploading}>
                 <Link href={`/dashboard/members/${memberId}`}>Cancel</Link>
