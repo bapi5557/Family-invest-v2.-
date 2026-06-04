@@ -1,8 +1,9 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Users, BarChart2, Settings, LogOut } from "lucide-react";
+import { Home, Users, BarChart2, Settings, LogOut, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
@@ -23,6 +24,7 @@ export function Navbar() {
   const navItems = [
     { label: "Home", href: "/dashboard", icon: Home },
     { label: "Family", href: "/dashboard/members", icon: Users },
+    { label: "Reminders", href: "/dashboard/reminders", icon: Bell },
     { label: "Reports", href: "/dashboard/reports", icon: BarChart2 },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ];

@@ -47,6 +47,38 @@
       },
       "required": ["source", "amount", "date", "ownerId", "createdAt"]
     },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "A household or personal reminder for bills, investments, or events.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the reminder." },
+        "description": { "type": "string", "description": "Detailed notes." },
+        "date": { "type": "number", "description": "The scheduled date (timestamp)." },
+        "time": { "type": "string", "description": "Scheduled time (e.g., 10:00 AM)." },
+        "category": {
+          "type": "string",
+          "enum": ["Bill Payment", "Loan EMI", "Investment", "Insurance Renewal", "SIP/Mutual Fund", "Family Event", "Birthday", "Anniversary", "Other"],
+          "description": "Reminder classification."
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High"],
+          "description": "Urgency level."
+        },
+        "isRecurring": { "type": "boolean" },
+        "recurringType": {
+          "type": "string",
+          "enum": ["None", "Daily", "Weekly", "Monthly", "Yearly"]
+        },
+        "isGlobal": { "type": "boolean", "description": "If true, visible to everyone. If false, personal." },
+        "completed": { "type": "boolean" },
+        "ownerId": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["title", "date", "category", "priority", "ownerId"]
+    },
     "FamilySettings": {
       "title": "Family Settings",
       "description": "Global settings for a family account. Document ID is the owner's UID.",
@@ -76,6 +108,10 @@
     "/income/{incomeId}": {
       "schema": "Income",
       "description": "Collection of household income records."
+    },
+    "/reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "Collection of family and personal reminders."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",

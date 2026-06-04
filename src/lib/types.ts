@@ -10,6 +10,20 @@ export type ExpenseCategory =
   | "Water Bill"
   | "Other";
 
+export type ReminderCategory = 
+  | "Bill Payment"
+  | "Loan EMI"
+  | "Investment"
+  | "Insurance Renewal"
+  | "SIP/Mutual Fund"
+  | "Family Event"
+  | "Birthday"
+  | "Anniversary"
+  | "Other";
+
+export type Priority = "Low" | "Medium" | "High";
+export type RecurringType = "None" | "Daily" | "Weekly" | "Monthly" | "Yearly";
+
 export interface FamilyMember {
   id: string;
   name: string;
@@ -40,6 +54,23 @@ export interface Income {
   ownerId: string;
 }
 
+export interface Reminder {
+  id: string;
+  title: string;
+  description: string;
+  date: number;
+  time: string;
+  category: ReminderCategory;
+  priority: Priority;
+  isRecurring: boolean;
+  recurringType: RecurringType;
+  isGlobal: boolean;
+  completed: boolean;
+  ownerId: string;
+  createdBy: string;
+  createdAt: number;
+}
+
 export interface FamilySettings {
   adminPin: string;
   familyName?: string;
@@ -57,5 +88,17 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "Education",
   "Internet",
   "Water Bill",
+  "Other"
+];
+
+export const REMINDER_CATEGORIES: ReminderCategory[] = [
+  "Bill Payment",
+  "Loan EMI",
+  "Investment",
+  "Insurance Renewal",
+  "SIP/Mutual Fund",
+  "Family Event",
+  "Birthday",
+  "Anniversary",
   "Other"
 ];
