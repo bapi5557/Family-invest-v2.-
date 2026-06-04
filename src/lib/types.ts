@@ -144,6 +144,8 @@ export const DEFAULT_EXPENSE_CATEGORIES: { label: ExpenseCategory; icon: LucideI
   { label: "Other", icon: MoreHorizontal }
 ];
 
+export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES.map(c => c.label);
+
 export const REMINDER_CATEGORIES: ReminderCategory[] = [
   "Bill Payment",
   "Loan EMI",
