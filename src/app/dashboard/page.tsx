@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, Users, Wallet, CreditCard, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
   const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
   const { data: recentExpenses } = useCollection<Expense>(recentExpensesQuery);
-  const { data: members } = useCollection<FamilyMember>(membersQuery);
+  const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
 
   const totalSpent = useMemo(() => {
     return allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
@@ -57,7 +57,7 @@ export default function DashboardPage() {
     return Object.entries(totals).sort((a, b) => b[1] - a[1])[0][0];
   }, [allExpenses]);
 
-  if (loadingExpenses) {
+  if (loadingExpenses || loadingMembers) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -72,7 +72,7 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-headline text-primary">Family Overview</h1>
           <p className="text-muted-foreground font-body">Financial pulse for the month</p>
         </div>
-        <Button className="rounded-full shadow-lg" asChild>
+        <Button className="rounded-full shadow-lg h-12 px-6" asChild>
           <Link href="/dashboard/expenses/new">
             <Plus className="w-4 h-4 mr-2" /> Add Expense
           </Link>
@@ -80,7 +80,7 @@ export default function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary text-white border-none shadow-xl">
+        <Card className="bg-primary text-white border-none shadow-xl rounded-2xl">
           <CardHeader className="pb-2">
             <CardDescription className="text-primary-foreground/70">Total Spending</CardDescription>
             <CardTitle className="text-4xl font-headline">{formatCurrencyVal(totalSpent)}</CardTitle>
@@ -93,7 +93,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border shadow-sm">
+        <Card className="bg-white border shadow-sm rounded-2xl">
           <CardHeader className="pb-2">
             <CardDescription>Family Members</CardDescription>
             <CardTitle className="text-3xl font-headline">{members?.length || 0}</CardTitle>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border shadow-sm">
+        <Card className="bg-white border shadow-sm rounded-2xl">
           <CardHeader className="pb-2">
             <CardDescription>Top Category</CardDescription>
             <CardTitle className="text-3xl font-headline">{topCategory}</CardTitle>
@@ -117,7 +117,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="font-headline text-xl">Recent Expenses</CardTitle>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {recentExpenses?.map((expense) => (
-              <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
+              <div key={expense.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-full border shadow-sm">
                     <CreditCard className="w-4 h-4 text-primary" />
@@ -143,32 +143,37 @@ export default function DashboardPage() {
               </div>
             ))}
             {recentExpenses?.length === 0 && (
-              <p className="text-center text-sm text-muted-foreground py-4">No recent expenses.</p>
+              <p className="text-center text-sm text-muted-foreground py-8 border-2 border-dashed rounded-xl">No recent expenses.</p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl">
           <CardHeader>
             <CardTitle className="font-headline text-xl">Family Network</CardTitle>
             <CardDescription>Quick access to profiles</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              {members?.slice(0, 3).map((member) => (
-              <Link key={member.id} href={`/dashboard/members/${member.id}`} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
+              <Link key={member.id} href={`/dashboard/members/${member.id}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold">
                     {member.name.charAt(0)}
                   </div>
                   <div>
                     <p className="font-medium text-sm">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">{member.phone}</p>
+                    <p className="text-xs text-muted-foreground">{member.phone || 'No phone set'}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </Link>
             ))}
-            <Button variant="outline" className="w-full border-dashed" asChild>
+            
+            {members?.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">No family members added yet.</p>
+            )}
+
+            <Button variant="outline" className="w-full border-dashed rounded-xl h-12" asChild>
               <Link href="/dashboard/members/new">
                 <Plus className="w-4 h-4 mr-2" /> Add Member
               </Link>
