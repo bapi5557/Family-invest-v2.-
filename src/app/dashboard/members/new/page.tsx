@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from "react";
@@ -62,10 +63,9 @@ export default function NewMemberPage() {
       let photoUrl = "";
       
       if (photoFile && storage) {
-        // 1. FAST COMPRESS AND RESIZE
+        // Fast compression before upload
         const optimizedBlob = await compressAndResizeImage(photoFile);
         
-        // 2. UPLOAD WITH PROGRESS
         const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}.jpg`);
         const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
 
@@ -94,7 +94,7 @@ export default function NewMemberPage() {
         createdAt: Date.now(),
       };
 
-      // Faster UX: non-blocking firestore write
+      // Faster UX: non-blocking Firestore write
       addDoc(collection(db, "members"), memberData)
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({

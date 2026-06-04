@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
@@ -30,13 +31,10 @@ export default function DashboardPage() {
 
   // Android Back Button Management
   useEffect(() => {
-    // Add an extra state to trap the back button
     window.history.pushState({ dashboard: true }, "");
 
     const handlePopState = (event: PopStateEvent) => {
-      // When user presses back, show the confirmation dialog
       setIsExitDialogOpen(true);
-      // Re-push the state to prevent actual navigation until they confirm "Exit"
       window.history.pushState({ dashboard: true }, "");
     };
 
@@ -44,6 +42,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // Parallel Firestore Listeners - Loaded on startup
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -85,13 +84,11 @@ export default function DashboardPage() {
   }, [allExpenses]);
 
   const handleExitApp = () => {
-    // Since we are in a browser, we can't always close the tab,
-    // but we can navigate away or simply reset the history.
     window.location.href = "about:blank"; 
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <section className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline text-primary">Overview</h1>

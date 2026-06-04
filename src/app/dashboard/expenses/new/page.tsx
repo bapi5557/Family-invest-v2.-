@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -54,7 +55,7 @@ export default function NewExpensePage() {
       createdAt: Date.now(),
     };
 
-    // Fast non-blocking write
+    // Fast non-blocking Firestore write
     addDoc(collection(db, "expenses"), expenseData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
