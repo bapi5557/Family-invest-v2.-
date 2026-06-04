@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
@@ -48,20 +48,23 @@ export default function DashboardPage() {
   
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
 
+  // ARCHITECTURAL FIX: Use familyOwnerId if available, otherwise fallback to current user UID
+  const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+
   const expensesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "expenses"), where("ownerId", "==", user.uid));
-  }, [db, user]);
+    if (!db || !effectiveOwnerId) return null;
+    return query(collection(db, "expenses"), where("ownerId", "==", effectiveOwnerId));
+  }, [db, effectiveOwnerId]);
 
   const membersQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "members"), where("ownerId", "==", user.uid));
-  }, [db, user]);
+    if (!db || !effectiveOwnerId) return null;
+    return query(collection(db, "members"), where("ownerId", "==", effectiveOwnerId));
+  }, [db, effectiveOwnerId]);
 
   const remindersQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "reminders"), where("ownerId", "==", user.uid));
-  }, [db, user]);
+    if (!db || !effectiveOwnerId) return null;
+    return query(collection(db, "reminders"), where("ownerId", "==", effectiveOwnerId));
+  }, [db, effectiveOwnerId]);
 
   const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
@@ -93,6 +96,23 @@ export default function DashboardPage() {
             Family Database: {settings.familyName || 'Shared Ledger'} Synchronized
           </AlertDescription>
         </Alert>
+      )}
+
+      {!settings?.familyOwnerId && settings?.ownerId === user?.uid && (
+        <Card className="bg-accent/5 border border-accent/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+              <UserPlus className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-bold text-accent">Invite Family Members</p>
+              <p className="text-sm text-muted-foreground">Admins can generate secure QR codes for instant joining.</p>
+            </div>
+          </div>
+          <Button size="sm" className="rounded-xl h-10 px-6 bg-accent hover:bg-accent/90" asChild>
+            <Link href="/dashboard/settings/invites">Manage Invites</Link>
+          </Button>
+        </Card>
       )}
 
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4">

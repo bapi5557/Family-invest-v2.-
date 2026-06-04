@@ -2,26 +2,36 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useRouter } from "next/navigation";
+import { doc } from "firebase/firestore";
+import { FamilySettings } from "@/lib/types";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useUser();
+  const { user, loading: authLoading } = useUser();
+  const db = useFirestore();
   const router = useRouter();
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+
+  const { data: settings, loading: settingsLoading } = useDoc<FamilySettings>(settingsRef);
+
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.replace("/login");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
-  if (loading || !user) {
+  if (authLoading || settingsLoading || (user && !settings)) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center space-y-4">

@@ -76,7 +76,17 @@ export interface FamilySettings {
   familyName?: string;
   canExport?: boolean;
   ownerId: string;
+  familyOwnerId?: string; // If set, this user is a member of this family
   updatedAt: number;
+}
+
+export interface Invite {
+  id: string;
+  code: string;
+  ownerId: string;
+  expiresAt: number;
+  createdAt: number;
+  revoked: boolean;
 }
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [

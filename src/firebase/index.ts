@@ -9,8 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.12 (Forced refresh for studio-7478833500-c0c46)
- * This update ensures that the security rules engine correctly processes ownerId requirements.
+ * Rules version: 2024-05-24.13 (Added Invites and Multi-User Support)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;

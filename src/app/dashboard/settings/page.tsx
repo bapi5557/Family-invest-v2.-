@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download } from "lucide-react";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus } from "lucide-react";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { updateEmail, updatePassword, signOut } from "firebase/auth";
@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { FamilySettings } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -44,6 +45,8 @@ export default function SettingsPage() {
     if (settings) {
       setAdminPin(settings.adminPin);
       setCanExport(settings.canExport ?? true);
+      // Auto-authorize if this is a member profile (limited scope)
+      if (settings.familyOwnerId) setIsAuthorized(true);
     }
   }, [user, settings]);
 
@@ -150,6 +153,25 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {!settings?.familyOwnerId && (
+            <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden bg-accent/5">
+              <CardHeader className="p-8 pb-4">
+                <div className="flex items-center gap-3">
+                  <UserPlus className="w-6 h-6 text-accent" />
+                  <div>
+                    <CardTitle className="font-headline text-accent">Member Invitations</CardTitle>
+                    <CardDescription>Generate secure QR codes for family to join without passwords.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-8 pt-0">
+                <Button className="w-full h-12 rounded-xl bg-accent hover:bg-accent/90" asChild>
+                  <Link href="/dashboard/settings/invites">Manage Active Invites</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden">
             <CardHeader className="bg-slate-50 border-b p-8">
               <div className="flex items-center gap-3">
