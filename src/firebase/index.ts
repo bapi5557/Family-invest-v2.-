@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.8 (Triggering security rules sync for studio-7478833500-c0c46 to fix 'list at expenses' and 'list at members')
+ * Rules version: 2024-05-24.9 (Resolved index requirements and forced rules sync for project studio-7478833500-c0c46)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;

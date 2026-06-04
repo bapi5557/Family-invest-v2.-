@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, StickyNote, CreditCard, Loader2, Edit2, Trash2, Lock, Camera } from "lucide-react";
 import Link from "next/link";
-import { doc, collection, query, where, deleteDoc, orderBy } from "firebase/firestore";
+import { doc, collection, query, where, deleteDoc } from "firebase/firestore";
 import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
 import { FamilyMember, Expense, FamilySettings } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -48,18 +48,23 @@ export default function MemberProfilePage() {
   const { data: member, loading: loadingMember } = useDoc<FamilyMember>(memberRef);
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
 
+  // Optimized: Fetch all family expenses and filter/sort in memory to avoid complex indexing
   const expensesQuery = useMemoFirebase(() => {
-    if (!db || !memberId || !user) return null;
-    // CRITICAL: Queries must include the ownerId filter to satisfy security rules
+    if (!db || !user) return null;
     return query(
       collection(db, "expenses"),
-      where("ownerId", "==", user.uid),
-      where("memberId", "==", memberId as string),
-      orderBy("date", "desc")
+      where("ownerId", "==", user.uid)
     );
-  }, [db, memberId, user]);
+  }, [db, user]);
 
-  const { data: expenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+  const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+
+  const memberExpenses = useMemo(() => {
+    if (!allExpenses || !memberId) return [];
+    return allExpenses
+      .filter(e => e.memberId === memberId)
+      .sort((a, b) => b.date - a.date);
+  }, [allExpenses, memberId]);
 
   const requestAdminAction = (action: 'edit' | 'delete') => {
     setPendingAction(action);
@@ -163,7 +168,7 @@ export default function MemberProfilePage() {
             <CardDescription>Personal outflows attributed to {member.name}</CardDescription>
           </CardHeader>
           <CardContent className="p-8 space-y-4">
-            {expenses?.map((expense) => (
+            {memberExpenses.map((expense) => (
               <div key={expense.id} className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 border border-transparent hover:border-slate-200 transition-all hover:shadow-sm">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white rounded-xl border shadow-sm text-primary">
@@ -179,7 +184,7 @@ export default function MemberProfilePage() {
                 </div>
               </div>
             ))}
-            {!loadingExpenses && expenses?.length === 0 && (
+            {!loadingExpenses && memberExpenses.length === 0 && (
               <div className="text-center py-20 space-y-2">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                   <CreditCard className="w-8 h-8" />

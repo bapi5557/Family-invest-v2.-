@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { Expense, FamilyMember, FamilySettings } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,14 +42,14 @@ export default function DashboardPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Verification document: Verify the app can read the family settings
   const settingsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "settings", user.uid);
   }, [db, user]);
   const { data: settings, error: settingsError } = useDoc<FamilySettings>(settingsRef);
 
-  // Queries filtered by ownerId to satisfy Firestore Security Rules
+  // Optimized query: Fetch all expenses for the family owner. 
+  // We handle sorting and limiting in memory to avoid composite index requirements.
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -58,27 +58,24 @@ export default function DashboardPage() {
     );
   }, [db, user]);
 
-  const recentExpensesQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(
-      collection(db, "expenses"),
-      where("ownerId", "==", user.uid),
-      orderBy("date", "desc"),
-      limit(10)
-    );
-  }, [db, user]);
-
   const membersQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(collection(db, "members"), where("ownerId", "==", user.uid));
   }, [db, user]);
 
-  const { data: allExpenses, loading: loadingTotal } = useCollection<Expense>(totalExpensesQuery);
-  const { data: recentExpenses, loading: loadingRecent } = useCollection<Expense>(recentExpensesQuery);
+  const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(totalExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
 
   const totalSpent = useMemo(() => {
     return allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+  }, [allExpenses]);
+
+  // Derive recent expenses in memory to avoid Firestore Index requirement
+  const recentExpenses = useMemo(() => {
+    if (!allExpenses) return [];
+    return [...allExpenses]
+      .sort((a, b) => b.date - a.date)
+      .slice(0, 10);
   }, [allExpenses]);
 
   const topCategory = useMemo(() => {
@@ -96,7 +93,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Cloud Sync Status Banner */}
       {settings && (
         <Alert className="bg-green-50 border-green-200 text-green-700 rounded-2xl animate-in slide-in-from-top duration-500">
           <ShieldCheck className="w-4 h-4 text-green-600" />
@@ -130,7 +126,7 @@ export default function DashboardPage() {
         <Card className="bg-primary text-white border-none shadow-xl rounded-3xl overflow-hidden transition-all hover:scale-[1.02]">
           <CardHeader className="pb-2">
             <CardDescription className="text-primary-foreground/70 uppercase tracking-widest text-[10px] font-bold">Total Family Spent</CardDescription>
-            {loadingTotal ? (
+            {loadingExpenses ? (
               <Skeleton className="h-10 w-32 bg-white/20" />
             ) : (
               <CardTitle className="text-4xl font-headline">{formatCurrencyVal(totalSpent)}</CardTitle>
@@ -163,7 +159,7 @@ export default function DashboardPage() {
         <Card className="bg-white border-none shadow-sm rounded-3xl transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Main Outflow</CardDescription>
-            {loadingTotal ? (
+            {loadingExpenses ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <CardTitle className="text-3xl font-headline text-accent">{topCategory}</CardTitle>
@@ -187,7 +183,7 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent className="p-4 space-y-2">
-            {loadingRecent ? (
+            {loadingExpenses ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-3">
@@ -201,7 +197,7 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              recentExpenses?.map((expense) => (
+              recentExpenses.map((expense) => (
                 <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-primary/5 rounded-2xl group-hover:bg-primary/10 transition-colors">
@@ -219,7 +215,7 @@ export default function DashboardPage() {
                 </Link>
               ))
             )}
-            {!loadingRecent && recentExpenses?.length === 0 && !loadingTotal && (
+            {!loadingExpenses && recentExpenses.length === 0 && (
               <div className="text-center py-16 space-y-4 border-2 border-dashed rounded-3xl border-slate-100">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
                    <CreditCard className="w-8 h-8" />
