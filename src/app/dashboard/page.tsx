@@ -4,13 +4,14 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus, QrCode, Copy } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, FamilyMember, FamilySettings, Reminder } from "@/lib/types";
+import { Expense, FamilyMember, FamilySettings, Reminder, Invite } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, isPast } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { m
 export default function DashboardPage() {
   const { user } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -48,7 +50,6 @@ export default function DashboardPage() {
   
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
 
-  // ARCHITECTURAL FIX: Use familyOwnerId if available, otherwise fallback to current user UID
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
 
   const expensesQuery = useMemoFirebase(() => {
@@ -66,9 +67,21 @@ export default function DashboardPage() {
     return query(collection(db, "reminders"), where("ownerId", "==", effectiveOwnerId));
   }, [db, effectiveOwnerId]);
 
+  const invitesQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
+    // Only the admin (owner) can see invites they created
+    return query(collection(db, "invites"), where("ownerId", "==", user.uid), where("revoked", "==", false));
+  }, [db, user]);
+
   const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
   const { data: allReminders, loading: loadingReminders } = useCollection<Reminder>(remindersQuery);
+  const { data: invites } = useCollection<Invite>(invitesQuery);
+
+  const activeInvites = useMemo(() => {
+    if (!invites) return [];
+    return invites.filter(i => i.expiresAt > Date.now());
+  }, [invites]);
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
 
@@ -85,6 +98,11 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [allReminders]);
 
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Code Copied", description: "10-digit invite code is ready to share." });
+  };
+
   const handleExitApp = () => { window.location.href = "about:blank"; };
 
   return (
@@ -99,20 +117,39 @@ export default function DashboardPage() {
       )}
 
       {!settings?.familyOwnerId && settings?.ownerId === user?.uid && (
-        <Card className="bg-accent/5 border border-accent/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
-              <UserPlus className="w-6 h-6" />
+        <div className="space-y-4">
+          <Card className="bg-accent/5 border border-accent/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+                <UserPlus className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="font-bold text-accent">Invite Family Members</p>
+                <p className="text-sm text-muted-foreground">Admins can generate secure 10-digit codes for instant joining.</p>
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-accent">Invite Family Members</p>
-              <p className="text-sm text-muted-foreground">Admins can generate secure QR codes for instant joining.</p>
+            <Button size="sm" className="rounded-xl h-10 px-6 bg-accent hover:bg-accent/90" asChild>
+              <Link href="/dashboard/settings/invites">Manage Invites</Link>
+            </Button>
+          </Card>
+
+          {activeInvites.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeInvites.map((invite) => (
+                <Card key={invite.id} className="rounded-3xl border-none shadow-md bg-white overflow-hidden p-6 border-l-4 border-accent">
+                   <div className="flex items-center justify-between mb-2">
+                     <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-md">Active Invite</span>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => copyCode(invite.code)}>
+                        <Copy className="w-4 h-4" />
+                     </Button>
+                   </div>
+                   <p className="text-2xl font-code font-bold text-primary tracking-widest">{invite.code}</p>
+                   <p className="text-[10px] text-muted-foreground mt-1">Share this 10-digit code with family.</p>
+                </Card>
+              ))}
             </div>
-          </div>
-          <Button size="sm" className="rounded-xl h-10 px-6 bg-accent hover:bg-accent/90" asChild>
-            <Link href="/dashboard/settings/invites">Manage Invites</Link>
-          </Button>
-        </Card>
+          )}
+        </div>
       )}
 
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4">
