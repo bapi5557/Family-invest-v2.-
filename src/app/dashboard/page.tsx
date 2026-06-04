@@ -16,7 +16,6 @@ export default function DashboardPage() {
   const { user } = useUser();
   const db = useFirestore();
 
-  // Optimized queries with limits where possible
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -31,7 +30,7 @@ export default function DashboardPage() {
       collection(db, "expenses"),
       where("ownerId", "==", user.uid),
       orderBy("date", "desc"),
-      limit(10) // Limit fetching for faster initial load
+      limit(10)
     );
   }, [db, user]);
 
@@ -58,7 +57,7 @@ export default function DashboardPage() {
   }, [allExpenses]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <section className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline text-primary">Overview</h1>
@@ -147,7 +146,7 @@ export default function DashboardPage() {
               ))
             ) : (
               recentExpenses?.map((expense) => (
-                <div key={expense.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
+                <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-transparent hover:border-slate-100 hover:bg-slate-100 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-white rounded-lg shadow-xs">
                       <CreditCard className="w-4 h-4 text-primary" />
@@ -157,8 +156,11 @@ export default function DashboardPage() {
                       <p className="text-[10px] text-muted-foreground uppercase">{new Date(expense.date).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <p className="font-bold text-sm text-primary">-{formatCurrencyVal(expense.amount)}</p>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm text-primary">-{formatCurrencyVal(expense.amount)}</p>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </Link>
               ))
             )}
             {!loadingRecent && recentExpenses?.length === 0 && (
