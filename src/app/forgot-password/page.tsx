@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { useAuth } from "@/firebase";
-import { useToast } from "@/toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);

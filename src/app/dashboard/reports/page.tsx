@@ -1,38 +1,71 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, Share2, Sparkles, AlertCircle, CheckCircle2, PieChart } from "lucide-react";
+import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2 } from "lucide-react";
 import { monthlyExpenseEfficiencySummary, MonthlyExpenseEfficiencySummaryOutput } from "@/ai/flows/monthly-expense-efficiency-summary";
-import { MOCK_EXPENSES } from "@/lib/mock-data";
 import { Progress } from "@/components/ui/progress";
-import { formatCurrency } from "@/lib/utils";
-
-const formatCurrencyVal = (val: number) => `$${val.toLocaleString()}`;
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { collection, query, where, orderBy } from "firebase/firestore";
+import { Expense } from "@/lib/types";
 
 export default function ReportsPage() {
   const [aiReport, setAiReport] = useState<MonthlyExpenseEfficiencySummaryOutput | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const db = useFirestore();
+  const { user } = useUser();
+
+  const expensesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "expenses"),
+      where("ownerId", "==", user.uid),
+      orderBy("date", "desc")
+    );
+  }, [db, user]);
+
+  const { data: expenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+
+  const totalSpent = useMemo(() => {
+    return expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+  }, [expenses]);
+
+  const categoryBreakdown = useMemo(() => {
+    if (!expenses) return [];
+    const totals: Record<string, number> = {};
+    expenses.forEach(e => {
+      totals[e.category] = (totals[e.category] || 0) + e.amount;
+    });
+    return Object.entries(totals)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: totalSpent > 0 ? (amount / totalSpent) * 100 : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [expenses, totalSpent]);
 
   const generateAIInsights = async () => {
-    setLoading(true);
+    if (!expenses || expenses.length === 0) return;
+    setLoadingAi(true);
     try {
-      const expenses = MOCK_EXPENSES.map(e => ({
+      const expenseItems = expenses.map(e => ({
         category: e.category,
         amount: e.amount,
         description: e.description
       }));
       const res = await monthlyExpenseEfficiencySummary({
-        month: "January",
-        year: 2024,
-        expenses
+        month: new Date().toLocaleString('default', { month: 'long' }),
+        year: new Date().getFullYear(),
+        expenses: expenseItems
       });
       setAiReport(res);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setLoadingAi(false);
     }
   };
 
@@ -40,16 +73,24 @@ export default function ReportsPage() {
     window.print();
   };
 
+  if (loadingExpenses) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline text-primary">Monthly Report</h1>
-          <p className="text-muted-foreground">January 2024 Household Summary</p>
+          <p className="text-muted-foreground">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Household Summary</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportPDF} className="hidden sm:flex">
-            <FileDown className="w-4 h-4 mr-2" /> PDF
+            <FileDown className="w-4 h-4 mr-2" /> Print PDF
           </Button>
           <Button variant="outline" size="sm" className="hidden sm:flex">
             <Share2 className="w-4 h-4 mr-2" /> Share
@@ -64,14 +105,14 @@ export default function ReportsPage() {
               <CardTitle className="font-headline text-accent flex items-center">
                 <Sparkles className="w-5 h-5 mr-2" /> AI Insight Counselor
               </CardTitle>
-              {!aiReport && !loading && (
-                <Button size="sm" className="bg-accent hover:bg-accent/90" onClick={generateAIInsights}>
+              {!aiReport && !loadingAi && (
+                <Button size="sm" className="bg-accent hover:bg-accent/90" onClick={generateAIInsights} disabled={!expenses?.length}>
                    Analyze Expenses
                 </Button>
               )}
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {loadingAi ? (
                 <div className="py-8 text-center space-y-4">
                   <div className="animate-spin w-8 h-8 border-4 border-accent border-t-transparent rounded-full mx-auto" />
                   <p className="text-sm text-accent font-medium animate-pulse">Scanning spending patterns...</p>
@@ -108,7 +149,9 @@ export default function ReportsPage() {
               ) : (
                 <div className="py-8 text-center border-2 border-dashed border-accent/20 rounded-xl">
                   <PieChart className="w-12 h-12 text-accent/20 mx-auto mb-4" />
-                  <p className="text-sm text-muted-foreground">Click the button to get AI-powered insights on your spending for this month.</p>
+                  <p className="text-sm text-muted-foreground">
+                    {expenses?.length ? "Click the button to get AI-powered insights." : "No expenses recorded yet."}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -120,15 +163,18 @@ export default function ReportsPage() {
               <CardDescription>Breakdown by expense category</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {MOCK_EXPENSES.map((expense) => (
-                <div key={expense.id} className="space-y-2">
+              {categoryBreakdown.map((item) => (
+                <div key={item.category} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="font-medium">{expense.category}</span>
-                    <span className="text-muted-foreground">{formatCurrencyVal(expense.amount)}</span>
+                    <span className="font-medium">{item.category}</span>
+                    <span className="text-muted-foreground">${item.amount.toFixed(2)} ({item.percentage.toFixed(1)}%)</span>
                   </div>
-                  <Progress value={(expense.amount / 1500) * 100} className="h-1.5" />
+                  <Progress value={item.percentage} className="h-1.5" />
                 </div>
               ))}
+              {categoryBreakdown.length === 0 && (
+                <p className="text-center py-4 text-sm text-muted-foreground">No data to display.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -136,14 +182,14 @@ export default function ReportsPage() {
         <div className="space-y-6">
           <Card className="bg-primary text-white text-center p-6">
             <CardHeader>
-              <CardDescription className="text-primary-foreground/70 uppercase tracking-widest text-[10px]">Grand Total</CardDescription>
+              <CardDescription className="text-primary-foreground/70 uppercase tracking-widest text-[10px]">Total Household Spent</CardDescription>
               <CardTitle className="text-5xl font-headline">
-                {formatCurrencyVal(MOCK_EXPENSES.reduce((s, e) => s + e.amount, 0))}
+                ${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="p-3 bg-white/10 rounded-lg text-xs">
-                Next billing cycle starts in 12 days
+                Real-time synchronized with all members
               </div>
             </CardContent>
           </Card>
@@ -153,8 +199,8 @@ export default function ReportsPage() {
               <CardTitle className="font-headline text-lg">Report Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start text-sm h-12 border-slate-200">
-                <FileDown className="w-4 h-4 mr-3" /> Monthly Archive
+              <Button variant="outline" className="w-full justify-start text-sm h-12 border-slate-200" onClick={exportPDF}>
+                <FileDown className="w-4 h-4 mr-3" /> Export Archive
               </Button>
               <Button variant="outline" className="w-full justify-start text-sm h-12 border-slate-200">
                 <Share2 className="w-4 h-4 mr-3" /> Email to Family
