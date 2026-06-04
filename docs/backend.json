@@ -6,7 +6,7 @@
       "description": "A secure code to invite members to a family ledger.",
       "type": "object",
       "properties": {
-        "code": { "type": "string", "description": "Unique invite code (e.g., KINVEST-1234)." },
+        "code": { "type": "string", "description": "10-digit numeric invite code (e.g., 1234567890)." },
         "ownerId": { "type": "string", "description": "The UID of the family owner who created the invite." },
         "expiresAt": { "type": "number", "description": "Timestamp of expiration (default 7 days)." },
         "createdAt": { "type": "number", "description": "Timestamp of creation." },
@@ -16,7 +16,7 @@
     },
     "FamilyMember": {
       "title": "Family Member",
-      "description": "A profile for a family member within the network. Access is restricted to the family owner identified by the ownerId field.",
+      "description": "A profile for a family member within the network.",
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "The member's full name." },
@@ -30,7 +30,7 @@
     },
     "Expense": {
       "title": "Expense",
-      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field.",
+      "description": "A record of a household expense.",
       "type": "object",
       "properties": {
         "category": {
@@ -49,7 +49,7 @@
     },
     "Income": {
       "title": "Income",
-      "description": "A record of household income. Access is restricted to the family owner.",
+      "description": "A record of household income.",
       "type": "object",
       "properties": {
         "source": { "type": "string", "description": "Source of income (e.g., Salary, Bonus)." },
@@ -62,13 +62,13 @@
     },
     "Reminder": {
       "title": "Reminder",
-      "description": "A household or personal reminder for bills, investments, or events.",
+      "description": "A household or personal reminder.",
       "type": "object",
       "properties": {
         "title": { "type": "string", "description": "The title of the reminder." },
         "description": { "type": "string", "description": "Detailed notes." },
         "date": { "type": "number", "description": "The scheduled date (timestamp)." },
-        "time": { "type": "string", "description": "Scheduled time (e.g., 10:00 AM)." },
+        "time": { "type": "string", "description": "Scheduled time." },
         "category": {
           "type": "string",
           "enum": ["Bill Payment", "Loan EMI", "Investment", "Insurance Renewal", "SIP/Mutual Fund", "Family Event", "Birthday", "Anniversary", "Other"],
@@ -84,7 +84,7 @@
           "type": "string",
           "enum": ["None", "Daily", "Weekly", "Monthly", "Yearly"]
         },
-        "isGlobal": { "type": "boolean", "description": "If true, visible to everyone. If false, personal." },
+        "isGlobal": { "type": "boolean" },
         "completed": { "type": "boolean" },
         "ownerId": { "type": "string" },
         "createdBy": { "type": "string" },
@@ -113,27 +113,27 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members."
+      "description": "Collection of family members. Restricted by ownerId."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Collection of household expenses."
+      "description": "Collection of household expenses. Restricted by ownerId."
     },
     "/income/{incomeId}": {
       "schema": "Income",
-      "description": "Collection of household income records."
+      "description": "Collection of household income records. Restricted by ownerId."
     },
     "/reminders/{reminderId}": {
       "schema": "Reminder",
-      "description": "Collection of family and personal reminders."
+      "description": "Collection of family reminders. Restricted by ownerId."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "User-specific family configuration. Only the user with matching UID can read/write."
+      "description": "User family configuration. Only matching UID can read/write."
     },
     "/invites/{inviteId}": {
       "schema": "Invite",
-      "description": "Collection of family invites."
+      "description": "Family invites. Read access is allowed by code for authenticated users to facilitate joining."
     }
   }
 }

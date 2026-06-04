@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.15 (Optimized Settings Access)
+ * Rules version: 2024-05-24.16 (Optimized Invite Access)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;

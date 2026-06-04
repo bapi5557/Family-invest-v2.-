@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode } from "lucide-react";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode, ShieldCheck, Plus } from "lucide-react";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, setDoc, collection, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { updateEmail, updatePassword, signOut } from "firebase/auth";
@@ -42,7 +42,8 @@ export default function SettingsPage() {
 
   const invitesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, "invites"), where("ownerId", "==", user.uid), where("revoked", "==", false));
+    // Querying all invites for this admin to display status
+    return query(collection(db, "invites"), where("ownerId", "==", user.uid));
   }, [db, user]);
 
   const { data: settings, loading: loadingSettings } = useDoc<FamilySettings>(settingsRef);
@@ -50,7 +51,9 @@ export default function SettingsPage() {
 
   const activeInvites = useMemo(() => {
     if (!invites) return [];
-    return invites.filter(i => i.expiresAt > Date.now());
+    return invites
+      .filter(i => !i.revoked && i.expiresAt > Date.now())
+      .sort((a, b) => b.createdAt - a.createdAt);
   }, [invites]);
 
   useEffect(() => {
@@ -66,6 +69,7 @@ export default function SettingsPage() {
     if (!db || !user) return;
     setIsGenerating(true);
 
+    // Generate a secure 10-digit numeric code
     const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
     
     const inviteData = {
@@ -78,7 +82,7 @@ export default function SettingsPage() {
 
     try {
       await addDoc(collection(db, "invites"), inviteData);
-      toast({ title: "10-Digit Code Active", description: `Code ${code} generated for the family.` });
+      toast({ title: "10-Digit Code Active", description: `Invite ${code} created for your family.` });
     } catch (err) {
       const permsError = new FirestorePermissionError({ path: "invites", operation: "create", requestResourceData: inviteData });
       errorEmitter.emit("permission-error", permsError);
@@ -89,7 +93,7 @@ export default function SettingsPage() {
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast({ title: "Code Copied", description: "Ready to share with family members." });
+    toast({ title: "Code Copied", description: "Invite code is ready to share." });
   };
 
   const revokeInvite = async (inviteId: string) => {
@@ -189,7 +193,7 @@ export default function SettingsPage() {
                     <UserPlus className="w-6 h-6 text-accent" />
                     <div>
                       <CardTitle className="font-headline text-accent">Active Invitations</CardTitle>
-                      <CardDescription>Grant access to family members via 10-digit codes.</CardDescription>
+                      <CardDescription>Generated 10-digit codes for your family.</CardDescription>
                     </div>
                   </div>
                   <Button onClick={generateInvite} disabled={isGenerating} size="sm" className="rounded-xl h-10 bg-accent hover:bg-accent/90">
@@ -238,7 +242,7 @@ export default function SettingsPage() {
                 <Mail className="w-5 h-5 text-primary" />
                 <div>
                   <CardTitle className="font-headline">Login Credentials</CardTitle>
-                  <CardDescription>Update the shared email and password for the family.</CardDescription>
+                  <CardDescription>Update shared family email and password.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -263,7 +267,7 @@ export default function SettingsPage() {
                 <Lock className="w-5 h-5 text-accent" />
                 <div>
                   <CardTitle className="font-headline">Privacy & Safety</CardTitle>
-                  <CardDescription>Manage your family PIN and member permissions.</CardDescription>
+                  <CardDescription>Manage family PIN and member permissions.</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -297,9 +301,6 @@ export default function SettingsPage() {
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-3" /> Secure Logout
               </Button>
-            </div>
-            <div className="mt-10 pt-6 border-t border-white/10 text-center">
-              <p className="text-[10px] uppercase tracking-widest font-black text-white/40">KinVest Security Core v1.4</p>
             </div>
           </Card>
         </div>

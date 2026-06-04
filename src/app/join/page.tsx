@@ -41,20 +41,24 @@ function JoinFamilyForm() {
     const cleanCode = code.trim();
 
     try {
-      // 1. Find the invite
+      // OPTIMIZED: Query ONLY by code to avoid composite index requirement
       const invitesQuery = query(
         collection(db, "invites"), 
-        where("code", "==", cleanCode),
-        where("revoked", "==", false)
+        where("code", "==", cleanCode)
       );
       const inviteSnap = await getDocs(invitesQuery);
 
       if (inviteSnap.empty) {
-        throw new Error("Invalid or revoked 10-digit invite code.");
+        throw new Error("Invalid 10-digit invite code.");
       }
 
+      // Filter in memory for safety
       const inviteDoc = inviteSnap.docs[0];
       const inviteData = inviteDoc.data() as Invite;
+
+      if (inviteData.revoked) {
+        throw new Error("This invite code has been revoked by the admin.");
+      }
 
       // 2. Check expiration
       if (inviteData.expiresAt < Date.now()) {
