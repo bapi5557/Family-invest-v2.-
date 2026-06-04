@@ -13,6 +13,8 @@ import { updateEmail, updatePassword, signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { FamilySettings } from "@/lib/types";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -72,8 +74,19 @@ export default function SettingsPage() {
   const handleUpdatePin = () => {
     if (!db || !user || !adminPin) return;
     const docRef = doc(db, "settings", user.uid);
-    // Ensure ownerId is explicitly included to satisfy security rules
-    setDoc(docRef, { adminPin, updatedAt: Date.now(), ownerId: user.uid }, { merge: true });
+    const updateData = { adminPin, updatedAt: Date.now(), ownerId: user.uid };
+    
+    // Non-blocking write with proper studio error emitter
+    setDoc(docRef, updateData, { merge: true })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: "update",
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      });
+      
     toast({ title: "PIN Updated", description: "New Admin PIN is now active." });
   };
 

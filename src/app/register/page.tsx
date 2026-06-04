@@ -13,6 +13,8 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
@@ -45,13 +47,25 @@ export default function RegisterPage() {
         await updateProfile(user, { displayName: familyName });
 
         // INITIALIZE PERMANENT FAMILY CLOUD SETTINGS
-        // Ensure ownerId is explicitly included to satisfy security rules
-        await setDoc(doc(db, "settings", user.uid), {
+        const settingsData = {
           adminPin: "1234",
           updatedAt: Date.now(),
           familyName: familyName.trim(),
           ownerId: user.uid,
-        });
+        };
+
+        const docRef = doc(db, "settings", user.uid);
+        
+        // Use non-blocking write with rich error handling
+        setDoc(docRef, settingsData)
+          .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+              path: docRef.path,
+              operation: "create",
+              requestResourceData: settingsData,
+            });
+            errorEmitter.emit("permission-error", permissionError);
+          });
 
         toast({
           title: "Family Account Created!",

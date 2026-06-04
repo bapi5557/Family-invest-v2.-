@@ -4,11 +4,11 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, orderBy, limit } from "firebase/firestore";
-import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { Expense, FamilyMember } from "@/lib/types";
+import { collection, query, where, orderBy, limit, doc } from "firebase/firestore";
+import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
+import { Expense, FamilyMember, FamilySettings } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -40,6 +41,13 @@ export default function DashboardPage() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  // TEST DOCUMENT: Load settings as a permission verification
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+  const { data: settings, error: settingsError } = useDoc<FamilySettings>(settingsRef);
 
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -87,6 +95,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Test Document Connection Banner */}
+      {settings && (
+        <Alert className="bg-green-50 border-green-200 text-green-700 rounded-2xl animate-in slide-in-from-top duration-500">
+          <ShieldCheck className="w-4 h-4 text-green-600" />
+          <AlertDescription className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+            Cloud Sync Active: {settings.familyName || 'Family Ledger'} Connected
+          </AlertDescription>
+        </Alert>
+      )}
+      {settingsError && (
+        <Alert variant="destructive" className="rounded-2xl">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="text-xs font-bold">
+            Cloud Connection Error: Please verify family permissions.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <section className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline text-primary">Family Overview</h1>
