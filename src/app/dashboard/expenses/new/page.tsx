@@ -17,13 +17,12 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, query, where } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { query, where } from "firebase/firestore";
 
 export default function NewExpensePage() {
   const [category, setCategory] = useState<ExpenseCategory>("Other");
@@ -59,7 +58,7 @@ export default function NewExpensePage() {
       createdAt: Date.now(),
     };
 
-    // FAST NON-BLOCKING CLOUD SAVE
+    // OPTIMIZATION: Non-blocking mutation for instant feedback
     addDoc(collection(db, "expenses"), expenseData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({

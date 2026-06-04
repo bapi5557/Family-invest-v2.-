@@ -63,6 +63,7 @@ export default function NewMemberPage() {
       let photoUrl = "";
       
       if (photoFile && storage) {
+        // OPTIMIZATION: Hardware-accelerated image processing
         const optimizedBlob = await compressAndResizeImage(photoFile);
         const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}.jpg`);
         const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
@@ -92,7 +93,7 @@ export default function NewMemberPage() {
         createdAt: Date.now(),
       };
 
-      // FAST NON-BLOCKING CLOUD SAVE
+      // OPTIMIZATION: Non-blocking write
       addDoc(collection(db, "members"), memberData)
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -104,8 +105,8 @@ export default function NewMemberPage() {
         });
 
       toast({ 
-        title: "Member Saved to Cloud", 
-        description: `${name} is now permanently part of your family network.` 
+        title: "Member Saved", 
+        description: `${name} is now part of your family network.` 
       });
       router.push("/dashboard");
     } catch (error: any) {
@@ -125,7 +126,7 @@ export default function NewMemberPage() {
       <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
         <CardHeader className="bg-primary text-white p-10">
           <CardTitle className="text-4xl font-headline">New Member</CardTitle>
-          <CardDescription className="text-primary-foreground/80 font-medium">Data is saved permanently to your family account.</CardDescription>
+          <CardDescription className="text-primary-foreground/80 font-medium">Add someone to your family's secure network.</CardDescription>
         </CardHeader>
         <CardContent className="p-10">
           {formError && (
@@ -168,7 +169,7 @@ export default function NewMemberPage() {
                 {isUploading && (
                    <div className="mt-3 w-40 mx-auto space-y-2">
                      <Progress value={uploadProgress} className="h-1.5" />
-                     <p className="text-[10px] text-primary animate-pulse font-black uppercase tracking-tighter">Uploading to Cloud... {Math.round(uploadProgress)}%</p>
+                     <p className="text-[10px] text-primary animate-pulse font-black uppercase tracking-tighter">Uploading... {Math.round(uploadProgress)}%</p>
                    </div>
                 )}
               </div>
@@ -181,7 +182,7 @@ export default function NewMemberPage() {
                   id="name" 
                   placeholder="e.g. Rahul Sharma"
                   required 
-                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 focus:ring-primary shadow-sm"
+                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 shadow-sm"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isUploading}
@@ -194,7 +195,7 @@ export default function NewMemberPage() {
                   id="phone" 
                   type="tel"
                   placeholder="e.g. +91 90000 00000"
-                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 focus:ring-primary shadow-sm"
+                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 shadow-sm"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={isUploading}
@@ -203,11 +204,11 @@ export default function NewMemberPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes" className="text-xs uppercase font-black text-slate-400 tracking-wider">Member Biography / Notes</Label>
+              <Label htmlFor="notes" className="text-xs uppercase font-black text-slate-400 tracking-wider">Biography / Notes</Label>
               <Textarea 
                 id="notes" 
                 placeholder="Key details for the family network..."
-                className="min-h-[140px] rounded-2xl resize-none text-base border-slate-200 focus:ring-primary shadow-sm p-4"
+                className="min-h-[140px] rounded-2xl resize-none text-base border-slate-200 shadow-sm p-4"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 disabled={isUploading}
@@ -217,7 +218,7 @@ export default function NewMemberPage() {
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button type="submit" className="flex-1 h-14 text-xl font-headline shadow-xl rounded-2xl" disabled={isUploading}>
                 {isUploading ? <Loader2 className="w-6 h-6 animate-spin mr-3" /> : <Save className="w-6 h-6 mr-3" />}
-                {isUploading ? "Syncing Photo..." : "Save Member"}
+                {isUploading ? "Processing..." : "Save Member"}
               </Button>
               <Button type="button" variant="outline" className="flex-1 h-14 rounded-2xl text-lg border-slate-200" asChild disabled={isUploading}>
                 <Link href="/dashboard">Cancel</Link>

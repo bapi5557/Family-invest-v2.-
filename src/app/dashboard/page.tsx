@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus, QrCode, Copy, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, doc, addDoc } from "firebase/firestore";
+import { collection, query, where, doc, addDoc, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { Expense, FamilyMember, FamilySettings, Reminder, Invite } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,7 +55,19 @@ export default function DashboardPage() {
 
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
 
-  const expensesQuery = useMemoFirebase(() => {
+  // OPTIMIZATION: Fetch only what's needed for the dashboard summary
+  const recentExpensesQuery = useMemoFirebase(() => {
+    if (!db || !effectiveOwnerId) return null;
+    return query(
+      collection(db, "expenses"), 
+      where("ownerId", "==", effectiveOwnerId),
+      limit(5)
+    );
+  }, [db, effectiveOwnerId]);
+
+  // For total calculations, we still need full collection or a optimized aggregation
+  // For MVP, we fetch once and memoize the sum
+  const allExpensesQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
     return query(collection(db, "expenses"), where("ownerId", "==", effectiveOwnerId));
   }, [db, effectiveOwnerId]);
@@ -65,20 +77,30 @@ export default function DashboardPage() {
     return query(collection(db, "members"), where("ownerId", "==", effectiveOwnerId));
   }, [db, effectiveOwnerId]);
 
-  const remindersQuery = useMemoFirebase(() => {
+  const upcomingRemindersQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
-    return query(collection(db, "reminders"), where("ownerId", "==", effectiveOwnerId));
+    return query(
+      collection(db, "reminders"), 
+      where("ownerId", "==", effectiveOwnerId),
+      where("completed", "==", false),
+      limit(5)
+    );
   }, [db, effectiveOwnerId]);
 
-  const invitesQuery = useMemoFirebase(() => {
+  const activeInvitesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    return query(collection(db, "invites"), where("ownerId", "==", user.uid), where("revoked", "==", false));
+    return query(
+      collection(db, "invites"), 
+      where("ownerId", "==", user.uid), 
+      where("revoked", "==", false)
+    );
   }, [db, user]);
 
-  const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+  const { data: recentExpenses, loading: loadingRecentExp } = useCollection<Expense>(recentExpensesQuery);
+  const { data: allExpenses } = useCollection<Expense>(allExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
-  const { data: allReminders, loading: loadingReminders } = useCollection<Reminder>(remindersQuery);
-  const { data: invites, loading: loadingInvites } = useCollection<Invite>(invitesQuery);
+  const { data: upcomingReminders, loading: loadingReminders } = useCollection<Reminder>(upcomingRemindersQuery);
+  const { data: invites } = useCollection<Invite>(activeInvitesQuery);
 
   const activeInvites = useMemo(() => {
     if (!invites) return [];
@@ -87,25 +109,12 @@ export default function DashboardPage() {
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
 
-  const recentExpenses = useMemo(() => {
-    if (!allExpenses) return [];
-    return [...allExpenses].sort((a, b) => b.date - a.date).slice(0, 5);
-  }, [allExpenses]);
-
-  const upcomingReminders = useMemo(() => {
-    if (!allReminders) return [];
-    return [...allReminders]
-      .filter(r => !r.completed)
-      .sort((a, b) => a.date - b.date)
-      .slice(0, 5);
-  }, [allReminders]);
-
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast({ title: "Code Copied", description: "10-digit invite code is ready to share." });
   };
 
-  const handleGenerateCode = async () => {
+  const handleGenerateCode = () => {
     if (!db || !user) return;
     setIsGenerating(true);
     const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
@@ -116,14 +125,18 @@ export default function DashboardPage() {
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
       revoked: false,
     };
-    try {
-      await addDoc(collection(db, "invites"), inviteData);
-      toast({ title: "Invite Code Ready", description: `Your 10-digit code is: ${code}` });
-    } catch (e) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'invites', operation: 'create', requestResourceData: inviteData }));
-    } finally {
-      setIsGenerating(false);
-    }
+    
+    // NON-BLOCKING MUTATION
+    addDoc(collection(db, "invites"), inviteData)
+      .then(() => {
+        toast({ title: "Invite Code Ready", description: `Your 10-digit code is: ${code}` });
+      })
+      .catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'invites', operation: 'create', requestResourceData: inviteData }));
+      })
+      .finally(() => {
+        setIsGenerating(false);
+      });
   };
 
   const handleExitApp = () => { window.location.href = "about:blank"; };
@@ -153,9 +166,9 @@ export default function DashboardPage() {
               </div>
             </div>
             {activeInvites.length === 0 ? (
-              <Button onClick={handleGenerateCode} disabled={isGenerating} className="rounded-xl h-12 px-8 bg-accent hover:bg-accent/90 shadow-lg animate-pulse">
+              <Button onClick={handleGenerateCode} disabled={isGenerating} className="rounded-xl h-12 px-8 bg-accent hover:bg-accent/90 shadow-lg">
                 {isGenerating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                Generate Your First Invite Code
+                Generate Invite Code
               </Button>
             ) : (
               <Button size="sm" variant="outline" className="rounded-xl h-10 px-6 border-accent text-accent" asChild>
@@ -205,15 +218,17 @@ export default function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-primary text-white border-none shadow-xl rounded-3xl overflow-hidden transition-all hover:scale-[1.02]">
+        <Card className="bg-primary text-white border-none shadow-xl rounded-3xl overflow-hidden transition-all hover:scale-[1.01]">
           <CardHeader className="pb-2">
             <CardDescription className="text-primary-foreground/70 uppercase tracking-widest text-[10px] font-bold">Total Family Outflow</CardDescription>
-            {loadingExpenses ? <Skeleton className="h-10 w-32 bg-white/20" /> : <CardTitle className="text-4xl font-headline">{formatCurrencyVal(totalSpent)}</CardTitle>}
+            <CardTitle className="text-4xl font-headline">
+              {allExpenses ? formatCurrencyVal(totalSpent) : <Skeleton className="h-10 w-32 bg-white/20" />}
+            </CardTitle>
           </CardHeader>
           <CardContent><div className="flex items-center text-xs text-primary-foreground/80"><Wallet className="w-3.5 h-3.5 mr-1" /> Ledger Balance</div></CardContent>
         </Card>
 
-        <Card className="bg-white border-none shadow-sm rounded-3xl transition-all hover:shadow-md">
+        <Card className="bg-white border-none shadow-sm rounded-3xl">
           <CardHeader className="pb-2">
             <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Family Network</CardDescription>
             {loadingMembers ? <Skeleton className="h-8 w-16" /> : <CardTitle className="text-3xl font-headline text-primary">{members?.length || 0}</CardTitle>}
@@ -223,10 +238,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-none shadow-sm rounded-3xl transition-all hover:shadow-md">
+        <Card className="bg-white border-none shadow-sm rounded-3xl">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Pending Reminders</CardDescription>
-            {loadingReminders ? <Skeleton className="h-8 w-16" /> : <CardTitle className="text-3xl font-headline text-accent">{upcomingReminders.length}</CardTitle>}
+            <CardDescription className="uppercase tracking-widest text-[10px] font-bold">Upcoming Obligations</CardDescription>
+            {loadingReminders ? <Skeleton className="h-8 w-16" /> : <CardTitle className="text-3xl font-headline text-accent">{upcomingReminders?.length || 0}</CardTitle>}
           </CardHeader>
           <CardContent>
             <Link href="/dashboard/reminders" className="text-xs text-muted-foreground hover:underline">View Timelines</Link>
@@ -244,8 +259,8 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/expenses">All <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent className="p-4 space-y-2">
-            {loadingExpenses ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
-              recentExpenses.map((expense) => (
+            {loadingRecentExp ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
+              recentExpenses?.map((expense) => (
                 <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-primary/5 rounded-2xl group-hover:bg-primary/10 transition-colors"><CreditCard className="w-5 h-5 text-primary" /></div>
@@ -262,13 +277,13 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 p-6">
             <div>
               <CardTitle className="font-headline text-2xl">Family Timelines</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">Upcoming Obligations</CardDescription>
+              <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">Immediate Reminders</CardDescription>
             </div>
             <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/reminders">All <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent className="p-4 space-y-2">
             {loadingReminders ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
-              upcomingReminders.map((reminder) => {
+              upcomingReminders?.map((reminder) => {
                 const isOverdue = isPast(reminder.date);
                 return (
                   <Link key={reminder.id} href="/dashboard/reminders" className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
@@ -286,7 +301,7 @@ export default function DashboardPage() {
                 );
               })
             }
-            {!loadingReminders && upcomingReminders.length === 0 && (
+            {!loadingReminders && upcomingReminders?.length === 0 && (
               <div className="py-10 text-center text-slate-400 text-sm font-medium">No pending obligations.</div>
             )}
           </CardContent>
