@@ -1,14 +1,12 @@
-
 "use client";
 
-import { useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Phone, StickyNote, CreditCard, Loader2, Edit2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { doc, collection, query, where, deleteDoc, orderBy } from "firebase/firestore";
-import { useDoc, useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useDoc, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { FamilyMember, Expense } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -18,7 +16,6 @@ export default function MemberProfilePage() {
   const { memberId } = useParams();
   const router = useRouter();
   const db = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
 
   const memberRef = useMemoFirebase(() => {
@@ -78,7 +75,7 @@ export default function MemberProfilePage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center justify-between">
         <Link href="/dashboard/members" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Network

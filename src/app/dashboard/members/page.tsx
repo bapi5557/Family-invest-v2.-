@@ -1,7 +1,5 @@
-
 "use client";
 
-import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Phone, StickyNote, MoreVertical, Search, Edit2, Trash2, Loader2, Users } from "lucide-react";
@@ -12,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { collection, query, where, deleteDoc, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { FamilyMember } from "@/lib/types";
@@ -53,7 +50,7 @@ export default function MembersPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline text-primary">Family Network</h1>

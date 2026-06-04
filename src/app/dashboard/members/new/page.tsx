@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -50,8 +49,7 @@ export default function NewMemberPage() {
       createdAt: Date.now(),
     };
 
-    // Non-blocking write: we don't await the promise.
-    // This makes the UI feel much faster.
+    // Non-blocking write for speed
     addDoc(collection(db, "members"), memberData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -62,24 +60,23 @@ export default function NewMemberPage() {
         errorEmitter.emit("permission-error", permissionError);
       });
 
-    // Provide immediate success feedback and navigate
     toast({ 
-      title: "Member Added Successfully!", 
-      description: `${name} has been added to your family network.` 
+      title: "Member Added!", 
+      description: `${name} added to your family.` 
     });
     router.push("/dashboard");
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back
       </Link>
 
       <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-primary text-white p-8">
-          <CardTitle className="text-3xl font-headline">Add New Member</CardTitle>
-          <CardDescription className="text-primary-foreground/80">Create a profile for a family member to track their expenses.</CardDescription>
+          <CardTitle className="text-3xl font-headline">Add Member</CardTitle>
+          <CardDescription className="text-primary-foreground/80">Track a new family member's expenses.</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           {formError && (
@@ -108,7 +105,7 @@ export default function NewMemberPage() {
               <Input 
                 id="phone" 
                 type="tel"
-                placeholder="e.g. +1 555 0123"
+                placeholder="e.g. +91 98765 43210"
                 className="h-12 rounded-xl"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -116,10 +113,10 @@ export default function NewMemberPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm font-semibold">Notes (Relationship, details, etc.)</Label>
+              <Label htmlFor="notes" className="text-sm font-semibold">Notes</Label>
               <Textarea 
                 id="notes" 
-                placeholder="e.g. College student, primary contact for utilities..."
+                placeholder="e.g. Primary contact for house rent..."
                 className="min-h-[120px] rounded-xl resize-none"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}

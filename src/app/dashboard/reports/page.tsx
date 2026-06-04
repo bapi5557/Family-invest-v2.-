@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -78,7 +77,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline text-primary">Financial Intelligence</h1>
@@ -125,7 +124,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
               ) : aiReport ? (
-                <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="p-6 bg-white/60 backdrop-blur-sm border border-accent/10 rounded-2xl">
                     <p className="text-base leading-relaxed text-slate-700 font-medium italic">
                       "{aiReport.summary}"

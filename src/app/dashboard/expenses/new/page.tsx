@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -66,14 +65,14 @@ export default function NewExpensePage() {
         errorEmitter.emit("permission-error", permissionError);
       });
 
-    toast({ title: "Expense Recorded", description: "The transaction has been added to your ledger." });
+    toast({ title: "Expense Recorded", description: "The transaction was saved instantly." });
     router.push("/dashboard");
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back
       </Link>
 
       <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none">
