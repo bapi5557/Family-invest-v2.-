@@ -1,21 +1,22 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus } from "lucide-react";
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode } from "lucide-react";
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, setDoc, collection, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { updateEmail, updatePassword, signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { FamilySettings } from "@/lib/types";
+import { FamilySettings, Invite } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { format } from "date-fns";
 import Link from "next/link";
 
 export default function SettingsPage() {
@@ -32,31 +33,84 @@ export default function SettingsPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const settingsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "settings", user.uid);
   }, [db, user]);
 
+  const invitesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "invites"), where("ownerId", "==", user.uid), where("revoked", "==", false));
+  }, [db, user]);
+
   const { data: settings, loading: loadingSettings } = useDoc<FamilySettings>(settingsRef);
+  const { data: invites, loading: loadingInvites } = useCollection<Invite>(invitesQuery);
+
+  const activeInvites = useMemo(() => {
+    if (!invites) return [];
+    return invites.filter(i => i.expiresAt > Date.now());
+  }, [invites]);
 
   useEffect(() => {
     if (user) setNewEmail(user.email || "");
     if (settings) {
       setAdminPin(settings.adminPin);
       setCanExport(settings.canExport ?? true);
-      // Auto-authorize if this is a member profile (limited scope)
       if (settings.familyOwnerId) setIsAuthorized(true);
     }
   }, [user, settings]);
+
+  const generateInvite = async () => {
+    if (!db || !user) return;
+    setIsGenerating(true);
+
+    const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+    
+    const inviteData = {
+      code,
+      ownerId: user.uid,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      revoked: false,
+    };
+
+    try {
+      await addDoc(collection(db, "invites"), inviteData);
+      toast({ title: "10-Digit Code Active", description: `Code ${code} generated for the family.` });
+    } catch (err) {
+      const permsError = new FirestorePermissionError({ path: "invites", operation: "create", requestResourceData: inviteData });
+      errorEmitter.emit("permission-error", permsError);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast({ title: "Code Copied", description: "Ready to share with family members." });
+  };
+
+  const revokeInvite = async (inviteId: string) => {
+    if (!db) return;
+    const docRef = doc(db, "invites", inviteId);
+    try {
+      await updateDoc(docRef, { revoked: true });
+      toast({ title: "Invite Revoked", description: "This code is no longer valid." });
+    } catch (err) {
+      const permsError = new FirestorePermissionError({ path: docRef.path, operation: "update" });
+      errorEmitter.emit("permission-error", permsError);
+    }
+  };
 
   const handleVerifyPin = () => {
     const correctPin = settings?.adminPin || "1234";
     if (pinInput === correctPin) {
       setIsAuthorized(true);
-      toast({ title: "Admin Access Granted", description: "You can now manage sensitive settings." });
+      toast({ title: "Admin Access Granted" });
     } else {
-      toast({ variant: "destructive", title: "Invalid PIN", description: "Please enter the correct family admin PIN." });
+      toast({ variant: "destructive", title: "Invalid PIN" });
     }
     setPinInput("");
   };
@@ -65,15 +119,11 @@ export default function SettingsPage() {
     if (!auth?.currentUser) return;
     setLoading(true);
     try {
-      if (newEmail !== auth.currentUser.email) {
-        await updateEmail(auth.currentUser, newEmail);
-      }
-      if (newPassword) {
-        await updatePassword(auth.currentUser, newPassword);
-      }
-      toast({ title: "Account Updated", description: "Family credentials updated successfully." });
+      if (newEmail !== auth.currentUser.email) await updateEmail(auth.currentUser, newEmail);
+      if (newPassword) await updatePassword(auth.currentUser, newPassword);
+      toast({ title: "Account Updated" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: "Security requirement: Please log out and back in to change credentials." });
+      toast({ variant: "destructive", title: "Action Required", description: "Please re-login to update security credentials." });
     } finally {
       setLoading(false);
     }
@@ -82,24 +132,12 @@ export default function SettingsPage() {
   const handleUpdateSecuritySettings = () => {
     if (!db || !user) return;
     const docRef = doc(db, "settings", user.uid);
-    const updateData = { 
-      adminPin, 
-      canExport,
-      updatedAt: Date.now(), 
-      ownerId: user.uid 
-    };
-    
+    const updateData = { adminPin, canExport, updatedAt: Date.now(), ownerId: user.uid };
     setDoc(docRef, updateData, { merge: true })
       .catch(async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: docRef.path,
-          operation: "update",
-          requestResourceData: updateData,
-        });
-        errorEmitter.emit("permission-error", permissionError);
+        errorEmitter.emit("permission-error", new FirestorePermissionError({ path: docRef.path, operation: "update", requestResourceData: updateData }));
       });
-      
-    toast({ title: "Security Settings Updated", description: "New Admin preferences are now active." });
+    toast({ title: "Security Preferences Saved" });
   };
 
   const handleLogout = async () => {
@@ -115,24 +153,14 @@ export default function SettingsPage() {
           <Lock className="w-10 h-10 text-primary" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-headline">Admin Access</h1>
-          <p className="text-muted-foreground">Enter your family PIN to manage account settings.</p>
+          <h1 className="text-3xl font-headline">Admin Control</h1>
+          <p className="text-muted-foreground">Enter family PIN to manage secure settings.</p>
         </div>
         <Card className="p-8 border-none shadow-xl rounded-[2rem]">
           <div className="space-y-4">
-            <Input 
-              type="password" 
-              placeholder="Enter 4-digit PIN" 
-              maxLength={4} 
-              className="text-center text-2xl tracking-[1em] h-16 rounded-2xl"
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleVerifyPin()}
-            />
-            <Button className="w-full h-12 rounded-xl text-lg" onClick={handleVerifyPin}>
-              Verify Identity
-            </Button>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Default PIN is 1234</p>
+            <Input type="password" placeholder="0 0 0 0" maxLength={4} className="text-center text-2xl tracking-[1em] h-16 rounded-2xl" value={pinInput} onChange={(e) => setPinInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleVerifyPin()} />
+            <Button className="w-full h-12 rounded-xl text-lg font-bold" onClick={handleVerifyPin}>Authorize</Button>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Default PIN: 1234</p>
           </div>
         </Card>
       </div>
@@ -140,34 +168,66 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-headline text-primary">Family Admin</h1>
-          <p className="text-muted-foreground">Secure control center for {user?.displayName} Family</p>
+          <h1 className="text-3xl font-headline text-primary">Family Governance</h1>
+          <p className="text-muted-foreground font-medium">Control center for {settings?.familyName || 'your Family'}</p>
         </div>
         <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-3 h-3" /> Admin Mode
+          <CheckCircle2 className="w-3 h-3" /> Admin Mode Active
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {!settings?.familyOwnerId && (
-            <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden bg-accent/5">
+            <Card className="rounded-[2rem] shadow-xl border-none overflow-hidden bg-accent/5">
               <CardHeader className="p-8 pb-4">
-                <div className="flex items-center gap-3">
-                  <UserPlus className="w-6 h-6 text-accent" />
-                  <div>
-                    <CardTitle className="font-headline text-accent">Member Invitations</CardTitle>
-                    <CardDescription>Generate secure QR codes for family to join without passwords.</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <UserPlus className="w-6 h-6 text-accent" />
+                    <div>
+                      <CardTitle className="font-headline text-accent">Active Invitations</CardTitle>
+                      <CardDescription>Grant access to family members via 10-digit codes.</CardDescription>
+                    </div>
                   </div>
+                  <Button onClick={generateInvite} disabled={isGenerating} size="sm" className="rounded-xl h-10 bg-accent hover:bg-accent/90">
+                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                    New Code
+                  </Button>
                 </div>
               </CardHeader>
-              <CardContent className="p-8 pt-0">
-                <Button className="w-full h-12 rounded-xl bg-accent hover:bg-accent/90" asChild>
-                  <Link href="/dashboard/settings/invites">Manage Active Invites</Link>
-                </Button>
+              <CardContent className="p-8 pt-4 space-y-4">
+                {loadingInvites ? (
+                  <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-accent/20" /></div>
+                ) : activeInvites.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3">
+                    {activeInvites.map((invite) => (
+                      <div key={invite.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-accent/10 shadow-sm transition-all hover:shadow-md">
+                        <div className="space-y-1">
+                          <p className="text-2xl font-code font-black text-primary tracking-widest">{invite.code}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> Expires {format(invite.expiresAt, "MMM dd")}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => copyCode(invite.code)}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive" onClick={() => revokeInvite(invite.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 border-2 border-dashed border-accent/10 rounded-2xl bg-white/50">
+                    <p className="text-sm text-slate-400 font-medium">No active invite codes.</p>
+                    <Button variant="link" className="text-accent text-xs font-bold uppercase tracking-widest mt-1" onClick={generateInvite}>Click to generate first code</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -177,22 +237,22 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-primary" />
                 <div>
-                  <CardTitle className="font-headline">Shared Credentials</CardTitle>
-                  <CardDescription>Update the family login details used by everyone.</CardDescription>
+                  <CardTitle className="font-headline">Login Credentials</CardTitle>
+                  <CardDescription>Update the shared email and password for the family.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Shared Family Email</Label>
-                <Input id="email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
+                <Label htmlFor="email" className="text-xs uppercase font-bold text-slate-400">Shared Family Email</Label>
+                <Input id="email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-12 rounded-xl border-slate-200" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="pass">New Shared Password</Label>
-                <Input id="pass" type="password" placeholder="Leave blank to keep current" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 rounded-xl" />
+                <Label htmlFor="pass" className="text-xs uppercase font-bold text-slate-400">New Shared Password</Label>
+                <Input id="pass" type="password" placeholder="Leave blank to keep current" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 rounded-xl border-slate-200" />
               </div>
-              <Button className="w-full h-12 rounded-xl" onClick={handleUpdateAccount} disabled={loading}>
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Shared Changes"}
+              <Button className="w-full h-12 rounded-xl shadow-lg" onClick={handleUpdateAccount} disabled={loading}>
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Save Shared Changes"}
               </Button>
             </CardContent>
           </Card>
@@ -202,62 +262,54 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-accent" />
                 <div>
-                  <CardTitle className="font-headline">Security & Permissions</CardTitle>
-                  <CardDescription>Manage PIN and data export rights.</CardDescription>
+                  <CardTitle className="font-headline">Privacy & Safety</CardTitle>
+                  <CardDescription>Manage your family PIN and member permissions.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="grid gap-2">
-                <Label htmlFor="pin">New 4-Digit PIN</Label>
-                <Input 
-                  id="pin" 
-                  type="password" 
-                  maxLength={4} 
-                  placeholder="e.g. 5678" 
-                  value={adminPin} 
-                  onChange={(e) => setAdminPin(e.target.value)} 
-                  className="h-12 rounded-xl text-center text-xl tracking-widest" 
-                />
+                <Label htmlFor="pin" className="text-xs uppercase font-bold text-slate-400">New 4-Digit Admin PIN</Label>
+                <Input id="pin" type="password" maxLength={4} placeholder="e.g. 5678" value={adminPin} onChange={(e) => setAdminPin(e.target.value)} className="h-12 rounded-xl text-center text-xl tracking-[1em] border-slate-200" />
               </div>
               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Allow Data Export</Label>
-                  <p className="text-xs text-muted-foreground">Enable CSV/PDF sharing for all family members.</p>
+                  <Label className="text-base font-bold">Data Export Rights</Label>
+                  <p className="text-xs text-muted-foreground">Allow all members to share PDF/CSV reports.</p>
                 </div>
-                <Switch 
-                  checked={canExport}
-                  onCheckedChange={setCanExport}
-                />
+                <Switch checked={canExport} onCheckedChange={setCanExport} />
               </div>
               <Button variant="outline" className="w-full h-12 rounded-xl border-accent text-accent hover:bg-accent/5" onClick={handleUpdateSecuritySettings}>
-                Update Admin Preferences
+                Update Security Preferences
               </Button>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card className="rounded-[2rem] shadow-lg border-none bg-primary text-white p-8">
-            <CardTitle className="font-headline mb-4">Quick Links</CardTitle>
+          <Card className="rounded-[2rem] shadow-xl border-none bg-primary text-white p-8 overflow-hidden relative">
+            <div className="absolute -right-4 -bottom-4 opacity-10"><Shield className="w-32 h-32" /></div>
+            <CardTitle className="font-headline text-2xl mb-6">System Management</CardTitle>
             <div className="space-y-3">
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
-                <Database className="w-4 h-4 mr-3" /> Data Backup
-              </Button>
-              <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
-                <Shield className="w-4 h-4 mr-3" /> Privacy Policy
+                <Database className="w-4 h-4 mr-3" /> Ledger Backup
               </Button>
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 mr-3" /> Family Logout
+                <LogOut className="w-4 h-4 mr-3" /> Secure Logout
               </Button>
             </div>
+            <div className="mt-10 pt-6 border-t border-white/10 text-center">
+              <p className="text-[10px] uppercase tracking-widest font-black text-white/40">KinVest Security Core v1.4</p>
+            </div>
           </Card>
-          
-          <div className="text-center p-4">
-             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">KinVest Admin Panel v1.2</p>
-          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function Plus(props: any) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+  )
 }
