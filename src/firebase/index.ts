@@ -1,15 +1,15 @@
 
 "use client";
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
 import { useMemo } from 'react';
 
 /**
- * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.20 (Dashboard Quick Invite Active)
+ * Initializes Firebase services with production configuration and offline persistence.
+ * Rules version: 2024-05-24.22 (Offline Persistence Enabled)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;
@@ -27,7 +27,12 @@ export function initializeFirebase(): {
 
   try {
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    const firestore = getFirestore(app);
+    
+    // Enable persistent local cache for offline support
+    const firestore = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    });
+    
     const auth = getAuth(app);
     const storage = getStorage(app);
 
@@ -38,7 +43,7 @@ export function initializeFirebase(): {
   }
 }
 
-export { FirebaseProvider, useFirebaseApp, useFirestore, useAuth, useStorage } from './provider';
+export { FirebaseProvider, useFirebaseApp, useFirestore, useAuth, useStorage, useConnectionStatus } from './provider';
 export { FirebaseClientProvider } from './client-provider';
 export { useUser } from './auth/use-user';
 export { useCollection } from './firestore/use-collection';
