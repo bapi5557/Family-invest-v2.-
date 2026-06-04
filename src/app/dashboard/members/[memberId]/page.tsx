@@ -49,13 +49,15 @@ export default function MemberProfilePage() {
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
 
   const expensesQuery = useMemoFirebase(() => {
-    if (!db || !memberId) return null;
+    if (!db || !memberId || !user) return null;
+    // CRITICAL: Queries must include the ownerId filter to satisfy security rules
     return query(
       collection(db, "expenses"),
-      where("memberId", "==", memberId),
+      where("ownerId", "==", user.uid),
+      where("memberId", "==", memberId as string),
       orderBy("date", "desc")
     );
-  }, [db, memberId]);
+  }, [db, memberId, user]);
 
   const { data: expenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
 
