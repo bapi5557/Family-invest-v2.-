@@ -15,18 +15,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, query, where } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { query, where } from "firebase/firestore";
 
 export default function NewExpensePage() {
-  const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<ExpenseCategory>("Other");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -46,7 +44,6 @@ export default function NewExpensePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !user) return;
-    setLoading(true);
 
     const expenseData = {
       category,
@@ -58,11 +55,8 @@ export default function NewExpensePage() {
       createdAt: Date.now(),
     };
 
+    // Non-blocking write for immediate UI responsiveness
     addDoc(collection(db, "expenses"), expenseData)
-      .then(() => {
-        toast({ title: "Success", description: "Expense recorded." });
-        router.push("/dashboard");
-      })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: "expenses",
@@ -70,28 +64,30 @@ export default function NewExpensePage() {
           requestResourceData: expenseData,
         });
         errorEmitter.emit("permission-error", permissionError);
-      })
-      .finally(() => setLoading(false));
+      });
+
+    toast({ title: "Expense Recorded", description: "The transaction has been added to your dashboard." });
+    router.push("/dashboard");
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary">
+      <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
       </Link>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none">
+        <CardHeader className="bg-accent text-white p-8">
           <CardTitle className="text-2xl font-headline">Add Expense</CardTitle>
-          <CardDescription>Record a new household cost</CardDescription>
+          <CardDescription className="text-accent-foreground/80">Record a new household cost</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label className="text-sm font-semibold">Category</Label>
                 <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -102,12 +98,13 @@ export default function NewExpensePage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount ($)</Label>
+                <Label htmlFor="amount" className="text-sm font-semibold">Amount ($)</Label>
                 <Input 
                   id="amount" 
                   type="number" 
                   step="0.01" 
                   required 
+                  className="h-12 rounded-xl"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
@@ -115,9 +112,9 @@ export default function NewExpensePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Family Member (Optional)</Label>
+              <Label className="text-sm font-semibold">Family Member (Optional)</Label>
               <Select value={memberId} onValueChange={setMemberId}>
-                <SelectTrigger>
+                <SelectTrigger className="h-12 rounded-xl">
                   <SelectValue placeholder="Associate with member" />
                 </SelectTrigger>
                 <SelectContent>
@@ -130,21 +127,22 @@ export default function NewExpensePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description" className="text-sm font-semibold">Description</Label>
               <Textarea 
                 id="description" 
                 placeholder="e.g., Weekly grocery run"
+                className="min-h-[100px] rounded-xl"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Expense
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1 h-12 text-lg rounded-xl shadow-lg">
+                <Save className="w-5 h-5 mr-2" />
+                Add Expense
               </Button>
-              <Button type="button" variant="outline" asChild>
+              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild>
                 <Link href="/dashboard">Cancel</Link>
               </Button>
             </div>

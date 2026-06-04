@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { collection, addDoc } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -18,7 +18,6 @@ import { FirestorePermissionError } from "@/firebase/errors";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function NewMemberPage() {
-  const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -34,13 +33,7 @@ export default function NewMemberPage() {
     setFormError(null);
 
     if (!db || !user) {
-      const msg = "Database connection not established. Please check your login status.";
-      setFormError(msg);
-      toast({
-        variant: "destructive",
-        title: "Connection Error",
-        description: msg,
-      });
+      setFormError("Connection not established. Please sign in again.");
       return;
     }
 
@@ -48,8 +41,6 @@ export default function NewMemberPage() {
       setFormError("Member name is required.");
       return;
     }
-
-    setLoading(true);
 
     const memberData = {
       name: name.trim(),
@@ -59,26 +50,24 @@ export default function NewMemberPage() {
       createdAt: Date.now(),
     };
 
+    // Non-blocking write: we don't await the promise.
+    // This makes the UI feel much faster.
     addDoc(collection(db, "members"), memberData)
-      .then(() => {
-        toast({ 
-          title: "Success", 
-          description: `${name} has been added to your family network.` 
-        });
-        // Navigation to dashboard as requested
-        router.push("/dashboard");
-      })
       .catch(async (serverError) => {
-        console.error("Failed to add member:", serverError);
         const permissionError = new FirestorePermissionError({
           path: "members",
           operation: "create",
           requestResourceData: memberData,
         });
         errorEmitter.emit("permission-error", permissionError);
-        setFormError("You don't have permission to add members or a database error occurred.");
-      })
-      .finally(() => setLoading(false));
+      });
+
+    // Provide immediate success feedback and navigate
+    toast({ 
+      title: "Member Added Successfully!", 
+      description: `${name} has been added to your family network.` 
+    });
+    router.push("/dashboard");
   };
 
   return (
@@ -111,7 +100,6 @@ export default function NewMemberPage() {
                 className="h-12 rounded-xl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={loading}
               />
             </div>
 
@@ -124,7 +112,6 @@ export default function NewMemberPage() {
                 className="h-12 rounded-xl"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                disabled={loading}
               />
             </div>
 
@@ -136,20 +123,15 @@ export default function NewMemberPage() {
                 className="min-h-[120px] rounded-xl resize-none"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                disabled={loading}
               />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button type="submit" className="flex-1 h-12 text-lg shadow-lg rounded-xl" disabled={loading}>
-                {loading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-5 h-5 mr-2" />
-                )}
-                Save Member
+              <Button type="submit" className="flex-1 h-12 text-lg shadow-lg rounded-xl">
+                <Save className="w-5 h-5 mr-2" />
+                Quick Save
               </Button>
-              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild disabled={loading}>
+              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild>
                 <Link href="/dashboard">Cancel</Link>
               </Button>
             </div>
