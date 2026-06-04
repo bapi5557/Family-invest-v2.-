@@ -94,12 +94,12 @@
     },
     "FamilySettings": {
       "title": "Family Settings",
-      "description": "Global settings for a family account. Document ID is the owner's UID.",
+      "description": "Global settings for a family account. Document ID matches the user UID.",
       "type": "object",
       "properties": {
         "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
         "familyName": { "type": "string", "description": "The name of the family." },
-        "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this settings profile." },
         "canExport": { "type": "boolean", "description": "Whether non-admin members can export data." },
         "familyOwnerId": { "type": "string", "description": "The UID of the parent family account if this user is a member." },
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
@@ -129,7 +129,7 @@
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "Family-specific configuration."
+      "description": "User-specific family configuration. Only the user with matching UID can read/write."
     },
     "/invites/{inviteId}": {
       "schema": "Invite",

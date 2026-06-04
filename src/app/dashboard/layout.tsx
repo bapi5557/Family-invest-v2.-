@@ -2,7 +2,7 @@
 "use client";
 
 import { Navbar } from "@/components/layout/Navbar";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useRouter } from "next/navigation";
@@ -31,13 +31,33 @@ export default function DashboardLayout({
     }
   }, [user, authLoading, router]);
 
-  if (authLoading || settingsLoading || (user && !settings)) {
+  useEffect(() => {
+    // If we've finished loading and settings still don't exist for this user,
+    // they might need to join a family or complete setup.
+    if (!authLoading && !settingsLoading && user && !settings) {
+      router.replace("/join");
+    }
+  }, [user, authLoading, settingsLoading, settings, router]);
+
+  // Only show the global loading screen while we are actually fetching data.
+  // Once loading is false, if settings is null, the useEffect above handles the redirect.
+  if (authLoading || settingsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
           <p className="text-sm text-muted-foreground animate-pulse font-medium">Verifying Family Access...</p>
         </div>
+      </div>
+    );
+  }
+
+  // If we have a user but still no settings after loading, keep showing the loader
+  // for a split second until the redirect takes effect.
+  if (user && !settings) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
       </div>
     );
   }
