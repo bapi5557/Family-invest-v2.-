@@ -53,7 +53,7 @@ export default function NewMemberPage() {
     setFormError(null);
 
     if (!db || !user) {
-      setFormError("Connection not established. Please sign in again.");
+      setFormError("Family connection lost. Please re-login.");
       return;
     }
 
@@ -63,9 +63,7 @@ export default function NewMemberPage() {
       let photoUrl = "";
       
       if (photoFile && storage) {
-        // Fast compression before upload
         const optimizedBlob = await compressAndResizeImage(photoFile);
-        
         const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}.jpg`);
         const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
 
@@ -94,7 +92,7 @@ export default function NewMemberPage() {
         createdAt: Date.now(),
       };
 
-      // Faster UX: non-blocking Firestore write
+      // FAST NON-BLOCKING CLOUD SAVE
       addDoc(collection(db, "members"), memberData)
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -105,11 +103,14 @@ export default function NewMemberPage() {
           errorEmitter.emit("permission-error", permissionError);
         });
 
-      toast({ title: "Member Added!", description: `${name} is now part of your family.` });
+      toast({ 
+        title: "Member Saved to Cloud", 
+        description: `${name} is now permanently part of your family network.` 
+      });
       router.push("/dashboard");
     } catch (error: any) {
       console.error(error);
-      setFormError("Failed to process photo or save member data.");
+      setFormError("Persistence failed. Check your internet connection.");
     } finally {
       setIsUploading(false);
     }
@@ -118,41 +119,41 @@ export default function NewMemberPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
       <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
       </Link>
 
-      <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden">
-        <CardHeader className="bg-primary text-white p-8">
-          <CardTitle className="text-3xl font-headline">Add Member</CardTitle>
-          <CardDescription className="text-primary-foreground/80">Instantly sync family profiles.</CardDescription>
+      <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
+        <CardHeader className="bg-primary text-white p-10">
+          <CardTitle className="text-4xl font-headline">New Member</CardTitle>
+          <CardDescription className="text-primary-foreground/80 font-medium">Data is saved permanently to your family account.</CardDescription>
         </CardHeader>
-        <CardContent className="p-8">
+        <CardContent className="p-10">
           {formError && (
-            <Alert variant="destructive" className="mb-6">
+            <Alert variant="destructive" className="mb-6 rounded-2xl">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle className="font-bold">Save Error</AlertTitle>
               <AlertDescription>{formError}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex flex-col items-center gap-4 mb-4">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="flex flex-col items-center gap-6 mb-4">
               <div className="relative group">
-                <Avatar className="w-24 h-24 border-4 border-slate-100 shadow-md">
+                <Avatar className="w-32 h-32 border-4 border-slate-50 shadow-xl rounded-[2rem]">
                   <AvatarImage src={photoPreview || ""} className="object-cover" />
-                  <AvatarFallback className="bg-primary/5 text-primary text-2xl font-bold">
-                    {name ? name.charAt(0) : <Camera className="w-8 h-8 opacity-30" />}
+                  <AvatarFallback className="bg-slate-100 text-primary text-4xl font-bold">
+                    {name ? name.charAt(0) : <Camera className="w-12 h-12 opacity-20" />}
                   </AvatarFallback>
                 </Avatar>
                 <Button 
                   type="button" 
                   variant="secondary" 
                   size="icon" 
-                  className="absolute bottom-0 right-0 rounded-full shadow-lg border-2 border-white"
+                  className="absolute -bottom-2 -right-2 rounded-2xl h-12 w-12 shadow-xl border-4 border-white"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
-                  <Camera className="w-4 h-4" />
+                  <Camera className="w-5 h-5" />
                 </Button>
               </div>
               <input 
@@ -162,61 +163,63 @@ export default function NewMemberPage() {
                 accept="image/*" 
                 onChange={handlePhotoChange} 
               />
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Member Photo</p>
+              <div className="text-center space-y-1">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Member Identity Photo</p>
                 {isUploading && (
-                   <div className="mt-2 w-32 mx-auto space-y-1">
-                     <Progress value={uploadProgress} className="h-1" />
-                     <p className="text-[10px] text-primary animate-pulse font-bold">{Math.round(uploadProgress)}%</p>
+                   <div className="mt-3 w-40 mx-auto space-y-2">
+                     <Progress value={uploadProgress} className="h-1.5" />
+                     <p className="text-[10px] text-primary animate-pulse font-black uppercase tracking-tighter">Uploading to Cloud... {Math.round(uploadProgress)}%</p>
                    </div>
                 )}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-semibold">Full Name</Label>
-              <Input 
-                id="name" 
-                placeholder="e.g. Sarah Johnson"
-                required 
-                className="h-12 rounded-xl"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isUploading}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-xs uppercase font-black text-slate-400 tracking-wider">Full Name</Label>
+                <Input 
+                  id="name" 
+                  placeholder="e.g. Rahul Sharma"
+                  required 
+                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 focus:ring-primary shadow-sm"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isUploading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-xs uppercase font-black text-slate-400 tracking-wider">Contact Number</Label>
+                <Input 
+                  id="phone" 
+                  type="tel"
+                  placeholder="e.g. +91 90000 00000"
+                  className="h-14 rounded-2xl text-lg font-medium border-slate-200 focus:ring-primary shadow-sm"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isUploading}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-semibold">Phone Number</Label>
-              <Input 
-                id="phone" 
-                type="tel"
-                placeholder="e.g. +91 98765 43210"
-                className="h-12 rounded-xl"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={isUploading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-sm font-semibold">Notes</Label>
+              <Label htmlFor="notes" className="text-xs uppercase font-black text-slate-400 tracking-wider">Member Biography / Notes</Label>
               <Textarea 
                 id="notes" 
-                placeholder="e.g. Family admin access..."
-                className="min-h-[120px] rounded-xl resize-none"
+                placeholder="Key details for the family network..."
+                className="min-h-[140px] rounded-2xl resize-none text-base border-slate-200 focus:ring-primary shadow-sm p-4"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 disabled={isUploading}
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button type="submit" className="flex-1 h-12 text-lg shadow-lg rounded-xl" disabled={isUploading}>
-                {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-                {isUploading ? "Processing..." : "Quick Save"}
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Button type="submit" className="flex-1 h-14 text-xl font-headline shadow-xl rounded-2xl" disabled={isUploading}>
+                {isUploading ? <Loader2 className="w-6 h-6 animate-spin mr-3" /> : <Save className="w-6 h-6 mr-3" />}
+                {isUploading ? "Syncing Photo..." : "Save Member"}
               </Button>
-              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild disabled={isUploading}>
+              <Button type="button" variant="outline" className="flex-1 h-14 rounded-2xl text-lg border-slate-200" asChild disabled={isUploading}>
                 <Link href="/dashboard">Cancel</Link>
               </Button>
             </div>

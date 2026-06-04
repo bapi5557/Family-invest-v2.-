@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useAuth, useFirestore } from "@/firebase";
@@ -30,7 +30,7 @@ export default function RegisterPage() {
       toast({
         variant: "destructive",
         title: "Configuration Error",
-        description: "Firebase services are not initialized.",
+        description: "Firebase connection could not be established.",
       });
       return;
     }
@@ -38,39 +38,36 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. Create the Shared Family Account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
       if (user) {
-        // 2. Set the family name
         await updateProfile(user, { displayName: familyName });
 
-        // 3. Initialize Family Settings (Admin PIN) in Firestore
-        // This ensures the data exists for the first login
+        // INITIALIZE PERMANENT FAMILY CLOUD SETTINGS
         await setDoc(doc(db, "settings", user.uid), {
           adminPin: "1234",
-          updatedAt: Date.now()
+          updatedAt: Date.now(),
+          familyName: familyName.trim(),
         });
+
+        toast({
+          title: "Family Account Created!",
+          description: `The ${familyName} family cloud database is now active.`,
+        });
+        
+        router.replace("/dashboard");
       }
-      
-      toast({
-        title: "Account Created!",
-        description: `${familyName} family registered successfully.`,
-      });
-      
-      router.replace("/dashboard");
     } catch (error: any) {
-      let errorMessage = "Registration failed. Please try again.";
+      console.error(error);
+      let errorMessage = "Registration failed. Try again shortly.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This family email is already registered.";
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = "Password is too weak. Minimum 6 characters.";
       }
       
       toast({
         variant: "destructive",
-        title: "Setup Failed",
+        title: "Account Setup Failed",
         description: errorMessage,
       });
     } finally {
@@ -79,67 +76,70 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <Link href="/" className="absolute top-8 left-8 flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+      <Link href="/" className="absolute top-8 left-8 flex items-center text-sm font-bold text-slate-500 hover:text-primary transition-colors">
         <ArrowLeft className="w-4 h-4 mr-2" /> Back
       </Link>
 
-      <Card className="w-full max-w-md border-none shadow-2xl overflow-hidden rounded-[2rem]">
-        <CardHeader className="bg-primary text-white p-8 text-center">
-          <CardTitle className="text-3xl font-headline">New Family Account</CardTitle>
-          <CardDescription className="text-primary-foreground/70">Create shared credentials for your family</CardDescription>
+      <Card className="w-full max-w-md border-none shadow-2xl overflow-hidden rounded-[2.5rem] bg-white">
+        <CardHeader className="bg-primary text-white p-10 text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Sparkles className="w-20 h-20" />
+          </div>
+          <CardTitle className="text-3xl font-headline tracking-tight">Setup Family</CardTitle>
+          <CardDescription className="text-primary-foreground/70 font-medium mt-1">Initialize your shared family cloud ledger.</CardDescription>
         </CardHeader>
-        <CardContent className="p-8 space-y-4">
-          <form onSubmit={handleRegister} className="space-y-4">
+        <CardContent className="p-10 space-y-6">
+          <form onSubmit={handleRegister} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Family / Last Name</Label>
+              <Label htmlFor="name" className="text-xs font-black uppercase tracking-widest text-slate-400">Family Name</Label>
               <Input 
                 id="name" 
                 placeholder="e.g. The Johnsons" 
                 required 
-                className="h-12"
+                className="h-14 rounded-2xl text-lg border-slate-200"
                 value={familyName}
                 onChange={(e) => setFamilyName(e.target.value)}
                 disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Shared Family Email</Label>
+              <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest text-slate-400">Shared Email</Label>
               <Input 
                 id="email" 
                 type="email" 
                 placeholder="family@example.com" 
                 required 
-                className="h-12"
+                className="h-14 rounded-2xl text-lg border-slate-200"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Shared Password</Label>
+              <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-400">Shared Password</Label>
               <Input 
                 id="password" 
                 type="password" 
                 required 
-                className="h-12"
+                className="h-14 rounded-2xl text-lg border-slate-200"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={6}
                 disabled={loading}
               />
-              <p className="text-[10px] text-muted-foreground">This password will be shared with the whole family.</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Shared across all family devices.</p>
             </div>
-            <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={loading}>
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Shared Account"}
+            <Button type="submit" className="w-full h-14 text-xl font-headline shadow-xl rounded-2xl mt-4" disabled={loading}>
+              {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Start Family Ledger"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="p-8 pt-0 text-center">
-          <p className="text-sm text-muted-foreground w-full">
-            Family already registered?{" "}
+        <CardFooter className="p-10 pt-0 text-center">
+          <p className="text-sm text-slate-500 font-medium w-full">
+            Already have an account?{" "}
             <Link href="/login" className="text-primary font-bold hover:underline">
-              Log in
+              Sign In
             </Link>
           </p>
         </CardFooter>

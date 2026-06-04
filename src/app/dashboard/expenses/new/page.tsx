@@ -15,20 +15,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc, query, where } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { query, where } from "firebase/firestore";
 
 export default function NewExpensePage() {
   const [category, setCategory] = useState<ExpenseCategory>("Other");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [memberId, setMemberId] = useState("unassigned");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const db = useFirestore();
   const { user } = useUser();
@@ -39,23 +41,25 @@ export default function NewExpensePage() {
     return query(collection(db, "members"), where("ownerId", "==", user.uid));
   }, [db, user]);
 
-  const { data: members } = useCollection<FamilyMember>(membersQuery);
+  const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !user) return;
 
+    setIsSubmitting(true);
+
     const expenseData = {
       category,
       amount: parseFloat(amount),
-      description,
+      description: description.trim(),
       memberId: memberId === "unassigned" ? null : memberId,
       date: Date.now(),
       ownerId: user.uid,
       createdAt: Date.now(),
     };
 
-    // Fast non-blocking Firestore write
+    // FAST NON-BLOCKING CLOUD SAVE
     addDoc(collection(db, "expenses"), expenseData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -66,7 +70,10 @@ export default function NewExpensePage() {
         errorEmitter.emit("permission-error", permissionError);
       });
 
-    toast({ title: "Expense Recorded", description: "The transaction was saved instantly." });
+    toast({ 
+      title: "Transaction Recorded", 
+      description: `₹${parseFloat(amount).toLocaleString('en-IN')} added to your shared family ledger.` 
+    });
     router.push("/dashboard");
   };
 
@@ -76,35 +83,36 @@ export default function NewExpensePage() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Back
       </Link>
 
-      <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none">
-        <CardHeader className="bg-accent text-white p-8">
-          <CardTitle className="text-2xl font-headline">Add Expense</CardTitle>
-          <CardDescription className="text-accent-foreground/80">Record a new household cost</CardDescription>
+      <Card className="rounded-[2.5rem] shadow-2xl overflow-hidden border-none">
+        <CardHeader className="bg-accent text-white p-10">
+          <CardTitle className="text-3xl font-headline tracking-tight">Record Expense</CardTitle>
+          <CardDescription className="text-accent-foreground/80 font-medium">Add to the family's shared ledger in real-time.</CardDescription>
         </CardHeader>
-        <CardContent className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <CardContent className="p-10">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Category</Label>
+                <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Transaction Category</Label>
                 <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
-                  <SelectTrigger className="h-12 rounded-xl">
+                  <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-medium text-lg">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-2xl">
                     {EXPENSE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      <SelectItem key={cat} value={cat} className="rounded-xl h-12">{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-sm font-semibold">Amount (₹)</Label>
+                <Label htmlFor="amount" className="text-xs font-black uppercase tracking-widest text-slate-400">Amount (₹)</Label>
                 <Input 
                   id="amount" 
                   type="number" 
                   step="0.01" 
                   required 
-                  className="h-12 rounded-xl"
+                  placeholder="0.00"
+                  className="h-14 rounded-2xl border-slate-200 text-2xl font-bold text-accent shadow-sm"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
@@ -112,38 +120,39 @@ export default function NewExpensePage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Family Member (Optional)</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Associated Member (Optional)</Label>
               <Select value={memberId} onValueChange={setMemberId}>
-                <SelectTrigger className="h-12 rounded-xl">
-                  <SelectValue placeholder="Associate with member" />
+                <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-medium text-lg">
+                  <SelectValue placeholder="General Household" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">General Household</SelectItem>
+                <SelectContent className="rounded-2xl">
+                  <SelectItem value="unassigned" className="rounded-xl h-12">General Household</SelectItem>
                   {members?.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    <SelectItem key={m.id} value={m.id} className="rounded-xl h-12">{m.name}</SelectItem>
                   ))}
+                  {loadingMembers && <div className="p-4 text-center"><Loader2 className="w-4 h-4 animate-spin inline mr-2" /> Loading members...</div>}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-semibold">Description</Label>
+              <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest text-slate-400">Description / Details</Label>
               <Textarea 
                 id="description" 
-                placeholder="e.g., Monthly grocery run"
-                className="min-h-[100px] rounded-xl"
+                placeholder="e.g., Weekly grocery stock from BigBasket"
+                className="min-h-[120px] rounded-2xl border-slate-200 text-base shadow-sm p-4 resize-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" className="flex-1 h-12 text-lg rounded-xl shadow-lg">
-                <Save className="w-5 h-5 mr-2" />
-                Add Expense
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Button type="submit" className="flex-1 h-14 text-xl font-headline rounded-2xl shadow-xl bg-accent hover:bg-accent/90" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin mr-3" /> : <Save className="w-6 h-6 mr-3" />}
+                {isSubmitting ? "Syncing..." : "Record Transaction"}
               </Button>
-              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild>
-                <Link href="/dashboard">Cancel</Link>
+              <Button type="button" variant="outline" className="flex-1 h-14 rounded-2xl text-lg border-slate-200" asChild disabled={isSubmitting}>
+                <Link href="/dashboard">Discard</Link>
               </Button>
             </div>
           </form>
