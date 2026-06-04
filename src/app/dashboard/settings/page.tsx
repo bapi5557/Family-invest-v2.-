@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -71,7 +72,8 @@ export default function SettingsPage() {
   const handleUpdatePin = () => {
     if (!db || !user || !adminPin) return;
     const docRef = doc(db, "settings", user.uid);
-    setDoc(docRef, { adminPin, updatedAt: Date.now() }, { merge: true });
+    // Ensure ownerId is explicitly included to satisfy security rules
+    setDoc(docRef, { adminPin, updatedAt: Date.now(), ownerId: user.uid }, { merge: true });
     toast({ title: "PIN Updated", description: "New Admin PIN is now active." });
   };
 

@@ -41,9 +41,10 @@
       "properties": {
         "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
         "familyName": { "type": "string", "description": "The name of the family." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
       },
-      "required": ["adminPin"]
+      "required": ["adminPin", "ownerId"]
     }
   },
   "auth": {
@@ -52,15 +53,15 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members."
+      "description": "Collection of family members owned by a family account."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Collection of all household expenses."
+      "description": "Collection of all household expenses owned by a family account."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "Family-specific configuration and PIN storage."
+      "description": "Family-specific configuration and PIN storage for a family account."
     }
   }
 }
