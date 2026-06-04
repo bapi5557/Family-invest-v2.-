@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Users } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,8 @@ export default function LoginPage() {
         title: "Family Logged In",
         description: "Welcome back to the shared dashboard.",
       });
-      router.push("/dashboard");
+      // Use replace to clear login from navigation history
+      router.replace("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",

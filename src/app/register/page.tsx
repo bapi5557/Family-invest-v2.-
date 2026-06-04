@@ -7,11 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useAuth } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
@@ -47,7 +46,8 @@ export default function RegisterPage() {
         description: `${familyName} family registered successfully.`,
       });
       
-      router.push("/dashboard");
+      // Use replace to clear register from navigation history
+      router.replace("/dashboard");
     } catch (error: any) {
       let errorMessage = "Registration failed. Please try again.";
       

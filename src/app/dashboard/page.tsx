@@ -1,22 +1,48 @@
-
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { Expense, FamilyMember } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 export default function DashboardPage() {
   const { user } = useUser();
   const db = useFirestore();
+  const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+
+  // Android Back Button Management
+  useEffect(() => {
+    // Add an extra state to trap the back button
+    window.history.pushState({ dashboard: true }, "");
+
+    const handlePopState = (event: PopStateEvent) => {
+      // When user presses back, show the confirmation dialog
+      setIsExitDialogOpen(true);
+      // Re-push the state to prevent actual navigation until they confirm "Exit"
+      window.history.pushState({ dashboard: true }, "");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -58,8 +84,14 @@ export default function DashboardPage() {
     return Object.entries(totals).sort((a, b) => b[1] - a[1])[0][0];
   }, [allExpenses]);
 
+  const handleExitApp = () => {
+    // Since we are in a browser, we can't always close the tab,
+    // but we can navigate away or simply reset the history.
+    window.location.href = "about:blank"; 
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <section className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline text-primary">Overview</h1>
@@ -227,6 +259,21 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
+        <AlertDialogContent className="rounded-[2rem]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Do you want to exit the app?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Any unsaved progress on forms will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleExitApp} className="rounded-xl">Exit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
