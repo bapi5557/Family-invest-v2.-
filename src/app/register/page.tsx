@@ -29,6 +29,10 @@ export default function RegisterPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
+      toast({
+        title: "Account created!",
+        description: "Welcome to KinVest.",
+      });
       router.push("/dashboard");
     } catch (error: any) {
       toast({

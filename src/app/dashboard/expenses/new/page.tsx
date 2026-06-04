@@ -20,7 +20,7 @@ import Link from "next/link";
 import { collection, addDoc, query, where } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
-import { useToast } from "@/toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function NewExpensePage() {
   const [loading, setLoading] = useState(false);
@@ -45,7 +45,7 @@ export default function NewExpensePage() {
     if (!db || !user) return;
     setLoading(true);
     try {
-      await addDoc(collection(db, "expenses"), {
+      addDoc(collection(db, "expenses"), {
         category,
         amount: parseFloat(amount),
         description,

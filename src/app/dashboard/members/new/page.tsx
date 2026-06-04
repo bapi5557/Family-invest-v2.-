@@ -12,7 +12,7 @@ import { ArrowLeft, Loader2, Save } from "lucide-react";
 import Link from "next/link";
 import { collection, addDoc } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
-import { useToast } from "@/toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function NewMemberPage() {
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function NewMemberPage() {
     if (!db || !user) return;
     setLoading(true);
     try {
-      await addDoc(collection(db, "members"), {
+      addDoc(collection(db, "members"), {
         name,
         phone,
         notes,
