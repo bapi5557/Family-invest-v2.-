@@ -68,7 +68,7 @@ export default function NewMemberPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
       <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
         <ArrowLeft className="w-4 h-4 mr-2" /> Back
       </Link>
