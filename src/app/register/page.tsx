@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -9,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RegisterPage() {
@@ -19,15 +21,16 @@ export default function RegisterPage() {
   const [familyName, setFamilyName] = useState("");
   const router = useRouter();
   const auth = useAuth();
+  const db = useFirestore();
   const { toast } = useToast();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) {
+    if (!auth || !db) {
       toast({
         variant: "destructive",
         title: "Configuration Error",
-        description: "Firebase Authentication is not initialized.",
+        description: "Firebase services are not initialized.",
       });
       return;
     }
@@ -35,10 +38,20 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      // 1. Create the Shared Family Account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      if (userCredential.user) {
-        await updateProfile(userCredential.user, { displayName: familyName });
+      if (user) {
+        // 2. Set the family name
+        await updateProfile(user, { displayName: familyName });
+
+        // 3. Initialize Family Settings (Admin PIN) in Firestore
+        // This ensures the data exists for the first login
+        await setDoc(doc(db, "settings", user.uid), {
+          adminPin: "1234",
+          updatedAt: Date.now()
+        });
       }
       
       toast({
@@ -46,15 +59,11 @@ export default function RegisterPage() {
         description: `${familyName} family registered successfully.`,
       });
       
-      // Use replace to clear register from navigation history
       router.replace("/dashboard");
     } catch (error: any) {
       let errorMessage = "Registration failed. Please try again.";
-      
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This family email is already registered.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = "Email/Password sign-in is not enabled in the Firebase Console.";
       } else if (error.code === 'auth/weak-password') {
         errorMessage = "Password is too weak. Minimum 6 characters.";
       }
@@ -119,7 +128,7 @@ export default function RegisterPage() {
                 minLength={6}
                 disabled={loading}
               />
-              <p className="text-[10px] text-muted-foreground">Share this password with all family members.</p>
+              <p className="text-[10px] text-muted-foreground">This password will be shared with the whole family.</p>
             </div>
             <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={loading}>
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Shared Account"}

@@ -33,6 +33,16 @@
         "createdAt": { "type": "number", "description": "Timestamp of record creation." }
       },
       "required": ["category", "amount", "date", "ownerId", "createdAt"]
+    },
+    "FamilySettings": {
+      "title": "Family Settings",
+      "description": "Global settings for a family account.",
+      "type": "object",
+      "properties": {
+        "adminPin": { "type": "string", "description": "A 4-digit PIN for sensitive family actions." },
+        "updatedAt": { "type": "number", "description": "Last updated timestamp." }
+      },
+      "required": ["adminPin"]
     }
   },
   "auth": {
@@ -46,6 +56,10 @@
     "/expenses/{expenseId}": {
       "schema": "Expense",
       "description": "Collection of all household expenses."
+    },
+    "/settings/{userId}": {
+      "schema": "FamilySettings",
+      "description": "Family-specific configuration and PIN storage."
     }
   }
 }
