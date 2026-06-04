@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck, AlertCircle, Info } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck, AlertCircle, Info, Bug } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
@@ -27,6 +27,8 @@ function JoinFamilyForm() {
   const [error, setError] = useState<string | null>(null);
 
   const reason = searchParams.get("reason");
+  const debugUid = searchParams.get("uid");
+  const debugFid = searchParams.get("fid");
 
   useEffect(() => {
     const urlCode = searchParams.get("code");
@@ -107,13 +109,29 @@ function JoinFamilyForm() {
 
   return (
     <div className="space-y-6">
-      {reason === 'no_family_connection' && (
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4">
-          <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-sm font-bold text-blue-700">Account Setup Required</p>
-            <p className="text-xs text-blue-600 font-medium">Your account isn't linked to a family ledger yet. Please join using an invite code or set up a new family.</p>
+      {reason && (
+        <div className="bg-slate-900 text-white p-6 rounded-[2rem] space-y-4 shadow-2xl animate-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3 text-amber-400">
+            <Bug className="w-5 h-5" />
+            <h3 className="font-bold uppercase tracking-widest text-xs">Membership Diagnostics</h3>
           </div>
+          <div className="grid grid-cols-1 gap-2 text-[10px] font-mono opacity-80">
+            <div className="flex justify-between border-b border-white/10 pb-1">
+              <span className="text-slate-400">UserId (UID):</span>
+              <span>{debugUid || user.uid}</span>
+            </div>
+            <div className="flex justify-between border-b border-white/10 pb-1">
+              <span className="text-slate-400">FamilyId (FID):</span>
+              <span>{debugFid || 'None (Missing Settings Doc)'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Redirect Reason:</span>
+              <span className="text-amber-300 font-bold">{reason.replace(/_/g, ' ')}</span>
+            </div>
+          </div>
+          <p className="text-[10px] italic text-slate-400">
+            Note: If you have data in the ledger but see this screen, your account may not be correctly linked to your family's settings document.
+          </p>
         </div>
       )}
 
