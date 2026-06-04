@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { useAuth } from "@/firebase";
-import { useToast } from "@/toast";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
