@@ -1,19 +1,69 @@
+
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, TrendingUp, Users, Wallet, CreditCard, ChevronRight } from "lucide-react";
+import { Plus, TrendingUp, Users, Wallet, CreditCard, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { MOCK_EXPENSES, MOCK_MEMBERS } from "@/lib/mock-data";
-import { formatCurrency } from "@/lib/utils";
+import { collection, query, where, orderBy, limit } from "firebase/firestore";
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { Expense, FamilyMember } from "@/lib/types";
 
-// Mock helper
-const formatCurrencyVal = (val: number) => `$${val.toLocaleString()}`;
+const formatCurrencyVal = (val: number) => `$${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
 export default function DashboardPage() {
-  const totalSpent = MOCK_EXPENSES.reduce((sum, e) => sum + e.amount, 0);
-  const recentExpenses = MOCK_EXPENSES.slice(0, 5).sort((a, b) => b.date - a.date);
+  const { user } = useUser();
+  const db = useFirestore();
+
+  const expensesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "expenses"),
+      where("ownerId", "==", user.uid),
+      orderBy("date", "desc")
+    );
+  }, [db, user]);
+
+  const recentExpensesQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, "expenses"),
+      where("ownerId", "==", user.uid),
+      orderBy("date", "desc"),
+      limit(5)
+    );
+  }, [db, user]);
+
+  const membersQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "members"), where("ownerId", "==", user.uid));
+  }, [db, user]);
+
+  const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+  const { data: recentExpenses } = useCollection<Expense>(recentExpensesQuery);
+  const { data: members } = useCollection<FamilyMember>(membersQuery);
+
+  const totalSpent = useMemo(() => {
+    return allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;
+  }, [allExpenses]);
+
+  const topCategory = useMemo(() => {
+    if (!allExpenses || allExpenses.length === 0) return "N/A";
+    const totals: Record<string, number> = {};
+    allExpenses.forEach(e => {
+      totals[e.category] = (totals[e.category] || 0) + e.amount;
+    });
+    return Object.entries(totals).sort((a, b) => b[1] - a[1])[0][0];
+  }, [allExpenses]);
+
+  if (loadingExpenses) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -32,13 +82,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-primary text-white border-none shadow-xl">
           <CardHeader className="pb-2">
-            <CardDescription className="text-primary-foreground/70">Monthly Spending</CardDescription>
+            <CardDescription className="text-primary-foreground/70">Total Spending</CardDescription>
             <CardTitle className="text-4xl font-headline">{formatCurrencyVal(totalSpent)}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center text-sm text-primary-foreground/80">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              <span>4.5% from last month</span>
+              <Wallet className="w-4 h-4 mr-1" />
+              <span>Real-time tracking active</span>
             </div>
           </CardContent>
         </Card>
@@ -46,7 +96,7 @@ export default function DashboardPage() {
         <Card className="bg-white border shadow-sm">
           <CardHeader className="pb-2">
             <CardDescription>Family Members</CardDescription>
-            <CardTitle className="text-3xl font-headline">{MOCK_MEMBERS.length}</CardTitle>
+            <CardTitle className="text-3xl font-headline">{members?.length || 0}</CardTitle>
           </CardHeader>
           <CardContent>
             <Link href="/dashboard/members" className="text-accent flex items-center text-sm font-medium hover:underline">
@@ -58,10 +108,10 @@ export default function DashboardPage() {
         <Card className="bg-white border shadow-sm">
           <CardHeader className="pb-2">
             <CardDescription>Top Category</CardDescription>
-            <CardTitle className="text-3xl font-headline">Rent</CardTitle>
+            <CardTitle className="text-3xl font-headline">{topCategory}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-muted-foreground">72% of total budget</div>
+            <div className="text-sm text-muted-foreground">Most significant expense</div>
           </CardContent>
         </Card>
       </div>
@@ -78,7 +128,7 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentExpenses.map((expense) => (
+            {recentExpenses?.map((expense) => (
               <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-transparent hover:border-slate-200">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white rounded-full border shadow-sm">
@@ -92,16 +142,19 @@ export default function DashboardPage() {
                 <p className="font-semibold text-sm text-primary">-{formatCurrencyVal(expense.amount)}</p>
               </div>
             ))}
+            {recentExpenses?.length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">No recent expenses.</p>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-headline text-xl">Family Members</CardTitle>
-            <CardDescription>Active contributors</CardDescription>
+            <CardTitle className="font-headline text-xl">Family Network</CardTitle>
+            <CardDescription>Quick access to profiles</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {MOCK_MEMBERS.map((member) => (
+             {members?.slice(0, 3).map((member) => (
               <Link key={member.id} href={`/dashboard/members/${member.id}`} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-bold">

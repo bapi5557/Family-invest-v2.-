@@ -1,10 +1,11 @@
+
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, User, Phone, StickyNote, MoreVertical, Search, Edit2, Trash2 } from "lucide-react";
+import { Plus, Phone, StickyNote, MoreVertical, Search, Edit2, Trash2, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { MOCK_MEMBERS } from "@/lib/mock-data";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +13,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { collection, query, where, deleteDoc, doc } from "firebase/firestore";
+import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { FamilyMember } from "@/lib/types";
 
 export default function MembersPage() {
+  const { user } = useUser();
+  const db = useFirestore();
+
+  const membersQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(collection(db, "members"), where("ownerId", "==", user.uid));
+  }, [db, user]);
+
+  const { data: members, loading } = useCollection<FamilyMember>(membersQuery);
+
+  const handleDelete = (memberId: string) => {
+    if (!db) return;
+    deleteDoc(doc(db, "members", memberId));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -34,7 +61,7 @@ export default function MembersPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {MOCK_MEMBERS.map((member) => (
+        {members?.map((member) => (
           <Card key={member.id} className="overflow-hidden group hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-start justify-between pb-2">
               <div className="flex items-center gap-4">
@@ -62,7 +89,10 @@ export default function MembersPage() {
                       <Edit2 className="w-4 h-4 mr-2" /> Edit
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem 
+                    onClick={() => handleDelete(member.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -78,6 +108,14 @@ export default function MembersPage() {
             </CardContent>
           </Card>
         ))}
+        {!loading && members?.length === 0 && (
+          <div className="col-span-full py-20 text-center space-y-4">
+            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
+              <Users className="w-8 h-8 text-slate-300" />
+            </div>
+            <p className="text-muted-foreground">No family members found. Start by adding one!</p>
+          </div>
+        )}
       </div>
     </div>
   );

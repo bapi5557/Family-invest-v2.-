@@ -1,0 +1,50 @@
+
+{
+  "entities": {
+    "FamilyMember": {
+      "title": "Family Member",
+      "description": "A profile for a family member within the network.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The member's full name." },
+        "phone": { "type": "string", "description": "The member's contact number." },
+        "notes": { "type": "string", "description": "Additional notes about the member." },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this member record." },
+        "createdAt": { "type": "number", "description": "Timestamp of creation." }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "A record of a household expense.",
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["Electric Bill", "LPG Cylinder", "House Rent", "Groceries", "Medical", "Education", "Internet", "Water Bill", "Other"],
+          "description": "The type of expense."
+        },
+        "amount": { "type": "number", "description": "The cost of the expense." },
+        "description": { "type": "string", "description": "Details about what was purchased." },
+        "date": { "type": "number", "description": "The date the expense occurred (timestamp)." },
+        "memberId": { "type": "string", "description": "Optional reference to a family member." },
+        "ownerId": { "type": "string", "description": "The UID of the user who recorded this expense." },
+        "createdAt": { "type": "number", "description": "Timestamp of record creation." }
+      },
+      "required": ["category", "amount", "date", "ownerId", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/members/{memberId}": {
+      "schema": "FamilyMember",
+      "description": "Collection of family members managed by users."
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Collection of all household expenses."
+    }
+  }
+}

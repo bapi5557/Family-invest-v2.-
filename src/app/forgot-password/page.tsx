@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -5,15 +6,35 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { useAuth } from "@/firebase";
+import { useToast } from "@/toast";
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const auth = useAuth();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!auth) return;
+    setLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSubmitted(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to send reset email.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,10 +54,18 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" placeholder="name@example.com" required className="h-12" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="name@example.com" 
+                    required 
+                    className="h-12"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
-                <Button type="submit" className="w-full h-12 text-lg shadow-lg">
-                  Send Link
+                <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={loading}>
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send Link"}
                 </Button>
               </form>
             </CardContent>
