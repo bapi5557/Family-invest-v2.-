@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,12 +6,13 @@ import { Home, Users, BarChart2, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { useAuth, useUser } from "@/firebase";
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
+  const { user } = useUser();
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -21,7 +21,7 @@ export function Navbar() {
   };
 
   const navItems = [
-    { label: "Dash", href: "/dashboard", icon: Home },
+    { label: "Home", href: "/dashboard", icon: Home },
     { label: "Family", href: "/dashboard/members", icon: Users },
     { label: "Reports", href: "/dashboard/reports", icon: BarChart2 },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
@@ -34,7 +34,14 @@ export function Navbar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-white font-headline text-xl">K</span>
           </div>
-          <span className="font-headline text-2xl text-primary tracking-tight">KinVest</span>
+          <div>
+            <span className="font-headline text-2xl text-primary tracking-tight">KinVest</span>
+            {user?.displayName && (
+              <span className="ml-2 text-[10px] uppercase font-bold text-accent tracking-widest">
+                {user.displayName} Family
+              </span>
+            )}
+          </div>
         </div>
         <nav className="flex items-center gap-6">
           {navItems.map((item) => (
@@ -74,7 +81,7 @@ export function Navbar() {
           className="flex flex-col items-center justify-center gap-1 min-w-[64px] text-muted-foreground"
         >
           <LogOut className="w-5 h-5" />
-          <span className="text-[10px] uppercase tracking-wider">Exit</span>
+          <span className="text-[10px] uppercase tracking-wider">Logout</span>
         </button>
       </nav>
     </>
