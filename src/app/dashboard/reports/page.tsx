@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2, TrendingDown } from "lucide-react";
+import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2, TrendingDown, BarChart2 } from "lucide-react";
 import { monthlyExpenseEfficiencySummary, MonthlyExpenseEfficiencySummaryOutput } from "@/ai/flows/monthly-expense-efficiency-summary";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
@@ -49,7 +50,6 @@ export default function ReportsPage() {
   const generateAIInsights = async () => {
     if (!expenses || expenses.length === 0) return;
     setLoadingAi(true);
-    // Instant feedback: Scroll to or highlight the generation area
     try {
       const expenseItems = expenses.map(e => ({
         category: e.category,
@@ -187,7 +187,7 @@ export default function ReportsPage() {
                 <div key={item.category} className="space-y-2">
                   <div className="flex justify-between text-sm items-center">
                     <span className="font-bold text-slate-700">{item.category}</span>
-                    <span className="font-mono text-muted-foreground">${item.amount.toFixed(2)} — {item.percentage.toFixed(1)}%</span>
+                    <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} — {item.percentage.toFixed(1)}%</span>
                   </div>
                   <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
                 </div>
@@ -209,7 +209,7 @@ export default function ReportsPage() {
             <CardHeader className="p-0 mb-4">
               <CardDescription className="text-primary-foreground/70 uppercase font-black tracking-widest text-[10px]">Net Household Outflow</CardDescription>
               <CardTitle className="text-5xl font-headline mt-2">
-                ${totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ₹{totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">

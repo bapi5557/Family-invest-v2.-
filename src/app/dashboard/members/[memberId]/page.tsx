@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -43,7 +44,6 @@ export default function MemberProfilePage() {
     if (confirm("Are you sure you want to delete this member?")) {
       const docRef = doc(db, "members", memberId as string);
       
-      // NON-BLOCKING: Delete and immediately navigate
       deleteDoc(docRef)
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -136,7 +136,7 @@ export default function MemberProfilePage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-primary text-lg">-${expense.amount.toFixed(2)}</p>
+                  <p className="font-bold text-primary text-lg">-₹{expense.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                 </div>
               </div>
             ))}

@@ -55,7 +55,7 @@ export default function NewExpensePage() {
       createdAt: Date.now(),
     };
 
-    // Non-blocking write for immediate UI responsiveness
+    // Fast non-blocking write
     addDoc(collection(db, "expenses"), expenseData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -66,7 +66,7 @@ export default function NewExpensePage() {
         errorEmitter.emit("permission-error", permissionError);
       });
 
-    toast({ title: "Expense Recorded", description: "The transaction has been added to your dashboard." });
+    toast({ title: "Expense Recorded", description: "The transaction has been added to your ledger." });
     router.push("/dashboard");
   };
 
@@ -98,7 +98,7 @@ export default function NewExpensePage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-sm font-semibold">Amount ($)</Label>
+                <Label htmlFor="amount" className="text-sm font-semibold">Amount (₹)</Label>
                 <Input 
                   id="amount" 
                   type="number" 
@@ -130,7 +130,7 @@ export default function NewExpensePage() {
               <Label htmlFor="description" className="text-sm font-semibold">Description</Label>
               <Textarea 
                 id="description" 
-                placeholder="e.g., Weekly grocery run"
+                placeholder="e.g., Monthly grocery run"
                 className="min-h-[100px] rounded-xl"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}

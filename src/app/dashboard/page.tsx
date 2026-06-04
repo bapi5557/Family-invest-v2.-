@@ -10,7 +10,7 @@ import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { Expense, FamilyMember } from "@/lib/types";
 
-const formatCurrencyVal = (val: number) => `$${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
 export default function DashboardPage() {
   const { user } = useUser();
