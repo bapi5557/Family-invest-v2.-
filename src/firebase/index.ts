@@ -1,5 +1,4 @@
-
-'use client';
+"use client";
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
@@ -9,7 +8,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.16 (Optimized Invite Access)
+ * Rules version: 2024-05-24.18 (Optimized 10-Digit Invite Access)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;

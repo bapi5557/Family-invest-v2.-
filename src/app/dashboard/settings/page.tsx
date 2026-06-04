@@ -41,7 +41,6 @@ export default function SettingsPage() {
 
   const invitesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
-    // Querying all invites for this admin to display status
     return query(collection(db, "invites"), where("ownerId", "==", user.uid));
   }, [db, user]);
 
@@ -68,7 +67,6 @@ export default function SettingsPage() {
     if (!db || !user) return;
     setIsGenerating(true);
 
-    // Generate a secure 10-digit numeric code
     const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
     
     const inviteData = {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -42,6 +41,7 @@ function JoinFamilyForm() {
 
     try {
       // OPTIMIZED: Query ONLY by code to avoid composite index requirement
+      // Firestore will search for the string code in the invites collection
       const invitesQuery = query(
         collection(db, "invites"), 
         where("code", "==", cleanCode)
@@ -52,7 +52,7 @@ function JoinFamilyForm() {
         throw new Error("Invalid 10-digit invite code.");
       }
 
-      // Filter in memory for safety
+      // Filter in memory for expiration and revocation to avoid index requirements
       const inviteDoc = inviteSnap.docs[0];
       const inviteData = inviteDoc.data() as Invite;
 
@@ -60,12 +60,11 @@ function JoinFamilyForm() {
         throw new Error("This invite code has been revoked by the admin.");
       }
 
-      // 2. Check expiration
       if (inviteData.expiresAt < Date.now()) {
         throw new Error("This invite code has expired.");
       }
 
-      // 3. Link user to family
+      // 3. Link user to family using the ownerId from the invite
       const settingsRef = doc(db, "settings", user.uid);
       await setDoc(settingsRef, {
         familyOwnerId: inviteData.ownerId,
