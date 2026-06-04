@@ -1,14 +1,40 @@
 
+import { 
+  Home, Zap, Flame, Droplets, Smartphone, Wifi, Fuel, Bus, 
+  Shirt, ShoppingCart, Utensils, Soup, Pencil, GraduationCap, 
+  Stethoscope, Pill, Banknote, Users, TrendingUp, Gift, 
+  PartyPopper, Wrench, Sprout, Shield, Tv, MoreHorizontal,
+  LucideIcon
+} from "lucide-react";
+
 export type ExpenseCategory = 
-  | "Electric Bill"
-  | "LPG Cylinder"
   | "House Rent"
-  | "Groceries"
-  | "Medical"
-  | "Education"
-  | "Internet"
+  | "Electricity Bill"
+  | "LPG Cylinder"
   | "Water Bill"
-  | "Other";
+  | "Mobile Recharge"
+  | "Internet/WiFi"
+  | "Petrol"
+  | "Transport"
+  | "Clothes"
+  | "Groceries"
+  | "Food"
+  | "Utensils"
+  | "Stationery"
+  | "Education"
+  | "Medical"
+  | "Medicines"
+  | "Loan"
+  | "Group Loan"
+  | "Investment"
+  | "Gifts"
+  | "Festival"
+  | "Repairs"
+  | "Agriculture"
+  | "Insurance"
+  | "Entertainment"
+  | "Other"
+  | string;
 
 export type ReminderCategory = 
   | "Bill Payment"
@@ -76,7 +102,7 @@ export interface FamilySettings {
   familyName?: string;
   canExport?: boolean;
   ownerId: string;
-  familyOwnerId?: string; // If set, this user is a member of this family
+  familyOwnerId?: string;
   updatedAt: number;
 }
 
@@ -89,16 +115,33 @@ export interface Invite {
   revoked: boolean;
 }
 
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  "Electric Bill",
-  "LPG Cylinder",
-  "House Rent",
-  "Groceries",
-  "Medical",
-  "Education",
-  "Internet",
-  "Water Bill",
-  "Other"
+export const DEFAULT_EXPENSE_CATEGORIES: { label: ExpenseCategory; icon: LucideIcon }[] = [
+  { label: "House Rent", icon: Home },
+  { label: "Electricity Bill", icon: Zap },
+  { label: "LPG Cylinder", icon: Flame },
+  { label: "Water Bill", icon: Droplets },
+  { label: "Mobile Recharge", icon: Smartphone },
+  { label: "Internet/WiFi", icon: Wifi },
+  { label: "Petrol", icon: Fuel },
+  { label: "Transport", icon: Bus },
+  { label: "Clothes", icon: Shirt },
+  { label: "Groceries", icon: ShoppingCart },
+  { label: "Food", icon: Utensils },
+  { label: "Utensils", icon: Soup },
+  { label: "Stationery", icon: Pencil },
+  { label: "Education", icon: GraduationCap },
+  { label: "Medical", icon: Stethoscope },
+  { label: "Medicines", icon: Pill },
+  { label: "Loan", icon: Banknote },
+  { label: "Group Loan", icon: Users },
+  { label: "Investment", icon: TrendingUp },
+  { label: "Gifts", icon: Gift },
+  { label: "Festival", icon: PartyPopper },
+  { label: "Repairs", icon: Wrench },
+  { label: "Agriculture", icon: Sprout },
+  { label: "Insurance", icon: Shield },
+  { label: "Entertainment", icon: Tv },
+  { label: "Other", icon: MoreHorizontal }
 ];
 
 export const REMINDER_CATEGORIES: ReminderCategory[] = [
@@ -112,3 +155,8 @@ export const REMINDER_CATEGORIES: ReminderCategory[] = [
   "Anniversary",
   "Other"
 ];
+
+export function getCategoryIcon(category: string): LucideIcon {
+  const match = DEFAULT_EXPENSE_CATEGORIES.find(c => c.label === category);
+  return match ? match.icon : MoreHorizontal;
+}

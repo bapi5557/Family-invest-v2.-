@@ -4,11 +4,11 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus, QrCode, Copy, Sparkles } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc, addDoc, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, FamilyMember, FamilySettings, Reminder, Invite } from "@/lib/types";
+import { Expense, FamilyMember, FamilySettings, Reminder, Invite, getCategoryIcon } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, isPast } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Progress } from "@/components/ui/progress";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -52,21 +53,8 @@ export default function DashboardPage() {
   }, [db, user]);
   
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
-
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
 
-  // OPTIMIZATION: Fetch only what's needed for the dashboard summary
-  const recentExpensesQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
-    return query(
-      collection(db, "expenses"), 
-      where("ownerId", "==", effectiveOwnerId),
-      limit(5)
-    );
-  }, [db, effectiveOwnerId]);
-
-  // For total calculations, we still need full collection or a optimized aggregation
-  // For MVP, we fetch once and memoize the sum
   const allExpensesQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
     return query(collection(db, "expenses"), where("ownerId", "==", effectiveOwnerId));
@@ -96,8 +84,7 @@ export default function DashboardPage() {
     );
   }, [db, user]);
 
-  const { data: recentExpenses, loading: loadingRecentExp } = useCollection<Expense>(recentExpensesQuery);
-  const { data: allExpenses } = useCollection<Expense>(allExpensesQuery);
+  const { data: allExpenses, loading: loadingExp } = useCollection<Expense>(allExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
   const { data: upcomingReminders, loading: loadingReminders } = useCollection<Reminder>(upcomingRemindersQuery);
   const { data: invites } = useCollection<Invite>(activeInvitesQuery);
@@ -108,6 +95,27 @@ export default function DashboardPage() {
   }, [invites]);
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
+
+  const categoryBreakdown = useMemo(() => {
+    if (!allExpenses || allExpenses.length === 0) return [];
+    const totals: Record<string, number> = {};
+    allExpenses.forEach(e => {
+      totals[e.category] = (totals[e.category] || 0) + e.amount;
+    });
+    return Object.entries(totals)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: (amount / totalSpent) * 100
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+  }, [allExpenses, totalSpent]);
+
+  const recentExpenses = useMemo(() => {
+    if (!allExpenses) return [];
+    return [...allExpenses].sort((a, b) => b.date - a.date).slice(0, 5);
+  }, [allExpenses]);
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -126,7 +134,6 @@ export default function DashboardPage() {
       revoked: false,
     };
     
-    // NON-BLOCKING MUTATION
     addDoc(collection(db, "invites"), inviteData)
       .then(() => {
         toast({ title: "Invite Code Ready", description: `Your 10-digit code is: ${code}` });
@@ -176,32 +183,13 @@ export default function DashboardPage() {
               </Button>
             )}
           </Card>
-
-          {activeInvites.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeInvites.map((invite) => (
-                <Card key={invite.id} className="rounded-3xl border-none shadow-md bg-white overflow-hidden p-6 border-l-4 border-accent relative group">
-                   <div className="flex items-center justify-between mb-2">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-md">Active 10-Digit Code</span>
-                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-accent/5" onClick={() => copyCode(invite.code)}>
-                        <Copy className="w-4 h-4 text-accent" />
-                     </Button>
-                   </div>
-                   <p className="text-3xl font-code font-black text-primary tracking-[0.2em]">{invite.code}</p>
-                   <p className="text-[10px] text-muted-foreground mt-2 font-medium flex items-center gap-1">
-                     <CalendarClock className="w-3 h-3" /> Expires {format(invite.expiresAt, "PP")}
-                   </p>
-                </Card>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline text-primary">Family Overview</h1>
-          <p className="text-muted-foreground text-sm font-medium">Real-time household tracking</p>
+          <p className="text-muted-foreground text-sm font-medium">Real-time household tracking (₹ INR)</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="rounded-full h-12 px-6" asChild>
@@ -259,50 +247,42 @@ export default function DashboardPage() {
             <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/expenses">All <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent className="p-4 space-y-2">
-            {loadingRecentExp ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
-              recentExpenses?.map((expense) => (
-                <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/5 rounded-2xl group-hover:bg-primary/10 transition-colors"><CreditCard className="w-5 h-5 text-primary" /></div>
-                    <div><p className="font-bold text-slate-800">{expense.category}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">{format(expense.date, "PP")}</p></div>
-                  </div>
-                  <div className="flex items-center gap-3"><p className="font-bold text-primary text-lg">-{formatCurrencyVal(expense.amount)}</p><ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" /></div>
-                </Link>
-              ))
+            {loadingExp ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
+              recentExpenses?.map((expense) => {
+                const Icon = getCategoryIcon(expense.category);
+                return (
+                  <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/5 rounded-2xl group-hover:bg-primary/10 transition-colors"><Icon className="w-5 h-5 text-primary" /></div>
+                      <div><p className="font-bold text-slate-800">{expense.category}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">{format(expense.date, "PP")}</p></div>
+                    </div>
+                    <div className="flex items-center gap-3"><p className="font-bold text-primary text-lg">-{formatCurrencyVal(expense.amount)}</p><ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" /></div>
+                  </Link>
+                );
+              })
             }
           </CardContent>
         </Card>
 
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 p-6">
-            <div>
-              <CardTitle className="font-headline text-2xl">Family Timelines</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">Immediate Reminders</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/reminders">All <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+          <CardHeader className="p-6 border-b bg-slate-50/50">
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-accent" /> Top Outflows
+            </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-2">
-            {loadingReminders ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
-              upcomingReminders?.map((reminder) => {
-                const isOverdue = isPast(reminder.date);
-                return (
-                  <Link key={reminder.id} href="/dashboard/reminders" className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className={cn("p-3 rounded-2xl transition-colors", isOverdue ? "bg-red-50" : "bg-accent/5")}>
-                        <CalendarClock className={cn("w-5 h-5", isOverdue ? "text-red-500" : "text-accent")} />
-                      </div>
-                      <div>
-                        <p className={cn("font-bold", isOverdue ? "text-red-600" : "text-slate-800")}>{reminder.title}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium">{format(reminder.date, "PP")} • {reminder.category}</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" />
-                  </Link>
-                );
-              })
-            }
-            {!loadingReminders && upcomingReminders?.length === 0 && (
-              <div className="py-10 text-center text-slate-400 text-sm font-medium">No pending obligations.</div>
+          <CardContent className="p-8 space-y-6">
+            {categoryBreakdown.length > 0 ? (
+              categoryBreakdown.map((item) => (
+                <div key={item.category} className="space-y-2">
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="font-bold text-slate-700">{item.category}</span>
+                    <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN')} — {item.percentage.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
+                </div>
+              ))
+            ) : (
+              <div className="py-12 text-center text-slate-400 font-medium">No spending data to visualize.</div>
             )}
           </CardContent>
         </Card>

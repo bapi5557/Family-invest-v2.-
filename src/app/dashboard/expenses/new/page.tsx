@@ -15,21 +15,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { collection, addDoc, query, where } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
+import { DEFAULT_EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function NewExpensePage() {
   const [category, setCategory] = useState<ExpenseCategory>("Other");
+  const [customCategory, setCustomCategory] = useState("");
+  const [isCustomMode, setIsCustomMode] = useState(false);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [memberId, setMemberId] = useState("unassigned");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const router = useRouter();
   const db = useFirestore();
   const { user } = useUser();
@@ -48,8 +51,15 @@ export default function NewExpensePage() {
 
     setIsSubmitting(true);
 
+    const finalCategory = isCustomMode ? customCategory.trim() : category;
+    if (!finalCategory) {
+      toast({ variant: "destructive", title: "Missing Category", description: "Please select or enter a category." });
+      setIsSubmitting(false);
+      return;
+    }
+
     const expenseData = {
-      category,
+      category: finalCategory,
       amount: parseFloat(amount),
       description: description.trim(),
       memberId: memberId === "unassigned" ? null : memberId,
@@ -58,7 +68,6 @@ export default function NewExpensePage() {
       createdAt: Date.now(),
     };
 
-    // OPTIMIZATION: Non-blocking mutation for instant feedback
     addDoc(collection(db, "expenses"), expenseData)
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -71,9 +80,9 @@ export default function NewExpensePage() {
 
     toast({ 
       title: "Transaction Recorded", 
-      description: `₹${parseFloat(amount).toLocaleString('en-IN')} added to your shared family ledger.` 
+      description: `₹${parseFloat(amount).toLocaleString('en-IN')} added to your family ledger.` 
     });
-    router.push("/dashboard");
+    router.push("/dashboard/expenses");
   };
 
   return (
@@ -92,16 +101,47 @@ export default function NewExpensePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Transaction Category</Label>
-                <Select value={category} onValueChange={(v) => setCategory(v as ExpenseCategory)}>
-                  <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-medium text-lg">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    {EXPENSE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="rounded-xl h-12">{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {!isCustomMode ? (
+                  <div className="flex gap-2">
+                    <Select value={category} onValueChange={(v) => {
+                      if (v === "CUSTOM_ADD") {
+                        setIsCustomMode(true);
+                      } else {
+                        setCategory(v);
+                      }
+                    }}>
+                      <SelectTrigger className="h-14 rounded-2xl border-slate-200 font-medium text-lg flex-1">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl max-h-[300px]">
+                        {DEFAULT_EXPENSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.label} value={cat.label} className="rounded-xl h-12 flex items-center">
+                            <div className="flex items-center gap-2">
+                              <cat.icon className="w-4 h-4 text-muted-foreground" />
+                              <span>{cat.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="CUSTOM_ADD" className="rounded-xl h-12 text-primary font-bold">
+                          <Plus className="w-4 h-4 mr-2 inline" /> Add Custom...
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Enter custom category..."
+                      className="h-14 rounded-2xl border-primary"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      autoFocus
+                    />
+                    <Button variant="ghost" type="button" onClick={() => setIsCustomMode(false)} className="h-14 px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="amount" className="text-xs font-black uppercase tracking-widest text-slate-400">Amount (₹)</Label>

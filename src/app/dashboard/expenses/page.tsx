@@ -4,11 +4,11 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, CreditCard, Search, ArrowLeft, Loader2, Share2, Filter, Wallet, ArrowUpRight } from "lucide-react";
+import { Plus, Search, ArrowLeft, Loader2, Share2, Filter, Wallet, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, Income, FamilySettings } from "@/lib/types";
+import { Expense, Income, FamilySettings, getCategoryIcon } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { ShareExpensesDialog } from "@/components/ShareExpensesDialog";
 import { format } from "date-fns";
@@ -51,7 +51,7 @@ export default function AllExpensesPage() {
   const totalExp = useMemo(() => expenses?.reduce((s, e) => s + e.amount, 0) || 0, [expenses]);
   const totalInc = useMemo(() => income?.reduce((s, i) => s + i.amount, 0) || 0, [income]);
 
-  const canExport = settings?.canExport !== false; // Default true
+  const canExport = settings?.canExport !== false;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -120,23 +120,26 @@ export default function AllExpensesPage() {
           {loadingExp ? (
             <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>
           ) : (
-            filteredExpenses.map((expense) => (
-              <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-5 rounded-3xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 bg-slate-50 rounded-[1.25rem] flex items-center justify-center group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
-                    <CreditCard className="w-6 h-6 text-primary" />
+            filteredExpenses.map((expense) => {
+              const Icon = getCategoryIcon(expense.category);
+              return (
+                <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-5 rounded-3xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
+                  <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 bg-slate-50 rounded-[1.25rem] flex items-center justify-center group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-100">
+                      <Icon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-lg">{expense.category}</p>
+                      <p className="text-xs text-muted-foreground font-medium">{format(expense.date, "MMM dd, yyyy")} • {expense.description || "General Ledger"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-800 text-lg">{expense.category}</p>
-                    <p className="text-xs text-muted-foreground font-medium">{format(expense.date, "MMM dd, yyyy")} • {expense.description || "General Ledger"}</p>
+                  <div className="text-right">
+                    <p className="font-bold text-primary text-xl">₹{expense.amount.toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Confirmed</p>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary text-xl">₹{expense.amount.toLocaleString('en-IN')}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Confirmed</p>
-                </div>
-              </Link>
-            ))
+                </Link>
+              );
+            })
           )}
           {!loadingExp && filteredExpenses.length === 0 && (
             <div className="text-center py-20 bg-slate-50/50 rounded-[2rem] border-2 border-dashed border-slate-100">

@@ -35,8 +35,7 @@
       "properties": {
         "category": {
           "type": "string",
-          "enum": ["Electric Bill", "LPG Cylinder", "House Rent", "Groceries", "Medical", "Education", "Internet", "Water Bill", "Other"],
-          "description": "The type of expense."
+          "description": "The type of expense. Can be a default enum or custom string."
         },
         "amount": { "type": "number", "description": "The cost of the expense." },
         "description": { "type": "string", "description": "Details about the purchase." },
