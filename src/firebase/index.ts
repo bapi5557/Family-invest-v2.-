@@ -1,7 +1,7 @@
 
 "use client";
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore, getFirestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration and offline persistence.
- * Rules version: 2024-05-24.22 (Offline Persistence Enabled)
+ * This function is idempotent and safe to call multiple times (e.g., during HMR).
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;
@@ -28,10 +28,16 @@ export function initializeFirebase(): {
   try {
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     
-    // Enable persistent local cache for offline support
-    const firestore = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-    });
+    let firestore: Firestore;
+    try {
+      // Attempt to initialize with specific persistence settings
+      firestore = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    } catch (e: any) {
+      // If already initialized (common in Next.js dev mode), just get the existing instance
+      firestore = getFirestore(app);
+    }
     
     const auth = getAuth(app);
     const storage = getStorage(app);
