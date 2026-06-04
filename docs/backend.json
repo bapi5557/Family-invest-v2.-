@@ -17,7 +17,7 @@
     },
     "Expense": {
       "title": "Expense",
-      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field. Queries must filter by ownerId.",
+      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field.",
       "type": "object",
       "properties": {
         "category": {
@@ -34,6 +34,19 @@
       },
       "required": ["category", "amount", "date", "ownerId", "createdAt"]
     },
+    "Income": {
+      "title": "Income",
+      "description": "A record of household income. Access is restricted to the family owner.",
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "description": "Source of income (e.g., Salary, Bonus)." },
+        "amount": { "type": "number", "description": "Amount received." },
+        "date": { "type": "number", "description": "Date of receipt." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
+        "createdAt": { "type": "number", "description": "Timestamp of record creation." }
+      },
+      "required": ["source", "amount", "date", "ownerId", "createdAt"]
+    },
     "FamilySettings": {
       "title": "Family Settings",
       "description": "Global settings for a family account. Document ID is the owner's UID.",
@@ -42,6 +55,7 @@
         "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
         "familyName": { "type": "string", "description": "The name of the family." },
         "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
+        "canExport": { "type": "boolean", "description": "Whether non-admin members can export data." },
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
       },
       "required": ["adminPin", "ownerId"]
@@ -53,15 +67,19 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members. Only the owner (ownerId) can read or write documents."
+      "description": "Collection of family members."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Collection of household expenses. Access is restricted to users with matching ownerId field."
+      "description": "Collection of household expenses."
+    },
+    "/income/{incomeId}": {
+      "schema": "Income",
+      "description": "Collection of household income records."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "Family-specific configuration. Only the user with matching UID can access this document."
+      "description": "Family-specific configuration."
     }
   }
 }

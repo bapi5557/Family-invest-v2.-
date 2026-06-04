@@ -31,8 +31,20 @@ export interface Expense {
   ownerId: string;
 }
 
+export interface Income {
+  id: string;
+  source: string;
+  amount: number;
+  date: number;
+  createdAt: number;
+  ownerId: string;
+}
+
 export interface FamilySettings {
   adminPin: string;
+  familyName?: string;
+  canExport?: boolean;
+  ownerId: string;
   updatedAt: number;
 }
 

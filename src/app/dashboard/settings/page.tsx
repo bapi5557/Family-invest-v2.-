@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download } from "lucide-react";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { updateEmail, updatePassword, signOut } from "firebase/auth";
@@ -26,7 +27,7 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [adminPin, setAdminPin] = useState("");
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [canExport, setCanExport] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (user) setNewEmail(user.email || "");
-  }, [user]);
+    if (settings) {
+      setAdminPin(settings.adminPin);
+      setCanExport(settings.canExport ?? true);
+    }
+  }, [user, settings]);
 
   const handleVerifyPin = () => {
     const correctPin = settings?.adminPin || "1234";
@@ -71,12 +76,16 @@ export default function SettingsPage() {
     }
   };
 
-  const handleUpdatePin = () => {
-    if (!db || !user || !adminPin) return;
+  const handleUpdateSecuritySettings = () => {
+    if (!db || !user) return;
     const docRef = doc(db, "settings", user.uid);
-    const updateData = { adminPin, updatedAt: Date.now(), ownerId: user.uid };
+    const updateData = { 
+      adminPin, 
+      canExport,
+      updatedAt: Date.now(), 
+      ownerId: user.uid 
+    };
     
-    // Non-blocking write with proper studio error emitter
     setDoc(docRef, updateData, { merge: true })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
@@ -87,7 +96,7 @@ export default function SettingsPage() {
         errorEmitter.emit("permission-error", permissionError);
       });
       
-    toast({ title: "PIN Updated", description: "New Admin PIN is now active." });
+    toast({ title: "Security Settings Updated", description: "New Admin preferences are now active." });
   };
 
   const handleLogout = async () => {
@@ -171,18 +180,36 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-accent" />
                 <div>
-                  <CardTitle className="font-headline">Admin Security</CardTitle>
-                  <CardDescription>Change the PIN required for Admin actions.</CardDescription>
+                  <CardTitle className="font-headline">Security & Permissions</CardTitle>
+                  <CardDescription>Manage PIN and data export rights.</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-8 space-y-4">
+            <CardContent className="p-8 space-y-6">
               <div className="grid gap-2">
                 <Label htmlFor="pin">New 4-Digit PIN</Label>
-                <Input id="pin" type="password" maxLength={4} placeholder="e.g. 5678" value={adminPin} onChange={(e) => setAdminPin(e.target.value)} className="h-12 rounded-xl text-center text-xl tracking-widest" />
+                <Input 
+                  id="pin" 
+                  type="password" 
+                  maxLength={4} 
+                  placeholder="e.g. 5678" 
+                  value={adminPin} 
+                  onChange={(e) => setAdminPin(e.target.value)} 
+                  className="h-12 rounded-xl text-center text-xl tracking-widest" 
+                />
               </div>
-              <Button variant="outline" className="w-full h-12 rounded-xl border-accent text-accent hover:bg-accent/5" onClick={handleUpdatePin}>
-                Update Admin PIN
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Allow Data Export</Label>
+                  <p className="text-xs text-muted-foreground">Enable CSV/PDF sharing for all family members.</p>
+                </div>
+                <Switch 
+                  checked={canExport}
+                  onCheckedChange={setCanExport}
+                />
+              </div>
+              <Button variant="outline" className="w-full h-12 rounded-xl border-accent text-accent hover:bg-accent/5" onClick={handleUpdateSecuritySettings}>
+                Update Admin Preferences
               </Button>
             </CardContent>
           </Card>
@@ -193,10 +220,10 @@ export default function SettingsPage() {
             <CardTitle className="font-headline mb-4">Quick Links</CardTitle>
             <div className="space-y-3">
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
-                <Database className="w-4 h-4 mr-3" /> Data Export
+                <Database className="w-4 h-4 mr-3" /> Data Backup
               </Button>
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
-                <Shield className="w-4 h-4 mr-3" /> Family Rules
+                <Shield className="w-4 h-4 mr-3" /> Privacy Policy
               </Button>
               <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-3" /> Family Logout
@@ -205,7 +232,7 @@ export default function SettingsPage() {
           </Card>
           
           <div className="text-center p-4">
-             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">KinVest Admin Panel</p>
+             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">KinVest Admin Panel v1.2</p>
           </div>
         </div>
       </div>
