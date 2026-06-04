@@ -3,21 +3,21 @@
   "entities": {
     "FamilyMember": {
       "title": "Family Member",
-      "description": "A profile for a family member within the network.",
+      "description": "A profile for a family member within the network. Access is restricted to the family owner identified by ownerId.",
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "The member's full name." },
         "phone": { "type": "string", "description": "The member's contact number." },
         "notes": { "type": "string", "description": "Additional notes about the member." },
         "photoUrl": { "type": "string", "description": "URL to the member's profile photo." },
-        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
         "createdAt": { "type": "number", "description": "Timestamp of creation." }
       },
       "required": ["name", "ownerId", "createdAt"]
     },
     "Expense": {
       "title": "Expense",
-      "description": "A record of a household expense.",
+      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field.",
       "type": "object",
       "properties": {
         "category": {
@@ -29,19 +29,19 @@
         "description": { "type": "string", "description": "Details about the purchase." },
         "date": { "type": "number", "description": "Date of expense (timestamp)." },
         "memberId": { "type": "string", "description": "Reference to a family member." },
-        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
         "createdAt": { "type": "number", "description": "Timestamp of record creation." }
       },
       "required": ["category", "amount", "date", "ownerId", "createdAt"]
     },
     "FamilySettings": {
       "title": "Family Settings",
-      "description": "Global settings for a family account.",
+      "description": "Global settings for a family account. Document ID is the owner's UID.",
       "type": "object",
       "properties": {
         "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
         "familyName": { "type": "string", "description": "The name of the family." },
-        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
       },
       "required": ["adminPin", "ownerId"]
@@ -53,15 +53,15 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members owned by a family account."
+      "description": "Collection of family members. Only the owner (ownerId) can read or write."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Collection of all household expenses owned by a family account."
+      "description": "Collection of household expenses. Only the owner (ownerId) can read or write."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "Family-specific configuration and PIN storage for a family account."
+      "description": "Family-specific configuration. Only the user with matching UID can access."
     }
   }
 }

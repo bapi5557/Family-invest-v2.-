@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
- * Rules version: 2024-05-24.6 (Triggering rules redeploy for studio-7478833500-c0c46 to resolve 'list at expenses' error)
+ * Rules version: 2024-05-24.8 (Triggering security rules sync for studio-7478833500-c0c46 to fix 'list at expenses' and 'list at members')
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;
