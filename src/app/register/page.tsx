@@ -8,19 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useAuth, useFirestore } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [familyName, setFamilyName] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const auth = useAuth();
   const db = useFirestore();
@@ -28,6 +30,8 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (!auth || !db) {
       toast({
         variant: "destructive",
@@ -56,16 +60,8 @@ export default function RegisterPage() {
 
         const docRef = doc(db, "settings", user.uid);
         
-        // Use non-blocking write with rich error handling
-        setDoc(docRef, settingsData)
-          .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-              path: docRef.path,
-              operation: "create",
-              requestResourceData: settingsData,
-            });
-            errorEmitter.emit("permission-error", permissionError);
-          });
+        // Await the initial setup to ensure DashboardLayout sees the data immediately
+        await setDoc(docRef, settingsData);
 
         toast({
           title: "Family Account Created!",
@@ -75,16 +71,17 @@ export default function RegisterPage() {
         router.replace("/dashboard");
       }
     } catch (error: any) {
-      console.error(error);
-      let errorMessage = "Registration failed. Try again shortly.";
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "This family email is already registered.";
+        setError("This family email is already registered. Please try logging in instead.");
+      } else {
+        console.error("Registration error:", error);
+        setError(error.message || "Registration failed. Please check your connection and try again.");
       }
       
       toast({
         variant: "destructive",
         title: "Account Setup Failed",
-        description: errorMessage,
+        description: error.code === 'auth/email-already-in-use' ? "Email already exists." : "Could not create account.",
       });
     } finally {
       setLoading(false);
@@ -106,6 +103,19 @@ export default function RegisterPage() {
           <CardDescription className="text-primary-foreground/70 font-medium mt-1">Initialize your shared family cloud ledger.</CardDescription>
         </CardHeader>
         <CardContent className="p-10 space-y-6">
+          {error && (
+            <Alert variant="destructive" className="rounded-2xl border-none bg-red-50 text-red-700 animate-in fade-in slide-in-from-top-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="text-xs font-black uppercase tracking-widest">Account Note</AlertTitle>
+              <AlertDescription className="text-sm font-medium">
+                {error}
+                {error.includes("registered") && (
+                  <Link href="/login" className="block mt-2 font-black underline decoration-dotted">Go to Login Page →</Link>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleRegister} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-xs font-black uppercase tracking-widest text-slate-400">Family Name</Label>
