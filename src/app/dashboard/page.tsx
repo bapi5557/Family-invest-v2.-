@@ -42,13 +42,14 @@ export default function DashboardPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // TEST DOCUMENT: Load settings as a permission verification
+  // Verification document: Verify the app can read the family settings
   const settingsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, "settings", user.uid);
   }, [db, user]);
   const { data: settings, error: settingsError } = useDoc<FamilySettings>(settingsRef);
 
+  // Queries filtered by ownerId to satisfy Firestore Security Rules
   const totalExpensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -95,7 +96,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Test Document Connection Banner */}
+      {/* Cloud Sync Status Banner */}
       {settings && (
         <Alert className="bg-green-50 border-green-200 text-green-700 rounded-2xl animate-in slide-in-from-top duration-500">
           <ShieldCheck className="w-4 h-4 text-green-600" />
@@ -108,7 +109,7 @@ export default function DashboardPage() {
         <Alert variant="destructive" className="rounded-2xl">
           <AlertCircle className="w-4 h-4" />
           <AlertDescription className="text-xs font-bold">
-            Cloud Connection Error: Please verify family permissions.
+            Cloud Connection Error: Please verify family permissions for project studio-7478833500-c0c46.
           </AlertDescription>
         </Alert>
       )}
@@ -218,7 +219,7 @@ export default function DashboardPage() {
                 </Link>
               ))
             )}
-            {!loadingRecent && recentExpenses?.length === 0 && (
+            {!loadingRecent && recentExpenses?.length === 0 && !loadingTotal && (
               <div className="text-center py-16 space-y-4 border-2 border-dashed rounded-3xl border-slate-100">
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
                    <CreditCard className="w-8 h-8" />
