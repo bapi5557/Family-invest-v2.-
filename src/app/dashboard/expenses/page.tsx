@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, CreditCard, Search, ArrowLeft, Loader2, Share2, Filter, Wallet, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { Expense, Income, FamilySettings } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { ShareExpensesDialog } from "@/components/ShareExpensesDialog";
+import { format } from "date-fns";
 
 export default function AllExpensesPage() {
   const { user } = useUser();
@@ -40,7 +41,10 @@ export default function AllExpensesPage() {
   const filteredExpenses = useMemo(() => {
     if (!expenses) return [];
     return [...expenses]
-      .filter((e) => e.category.toLowerCase().includes(searchTerm.toLowerCase()) || e.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      .filter((e) => 
+        e.category.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        e.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
       .sort((a, b) => b.date - a.date);
   }, [expenses, searchTerm]);
 
