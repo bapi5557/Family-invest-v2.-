@@ -9,6 +9,7 @@
         "name": { "type": "string", "description": "The member's full name." },
         "phone": { "type": "string", "description": "The member's contact number." },
         "notes": { "type": "string", "description": "Additional notes about the member." },
+        "photoUrl": { "type": "string", "description": "URL to the member's profile photo stored in Firebase Storage." },
         "ownerId": { "type": "string", "description": "The UID of the user who owns this member record." },
         "createdAt": { "type": "number", "description": "Timestamp of creation." }
       },

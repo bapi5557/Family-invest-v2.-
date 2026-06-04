@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from "react";
@@ -9,6 +10,7 @@ import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { Expense, FamilyMember } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -197,9 +199,12 @@ export default function DashboardPage() {
                members?.slice(0, 5).map((member) => (
                 <Link key={member.id} href={`/dashboard/members/${member.id}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-transparent">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center text-white font-bold text-sm">
-                      {member.name.charAt(0)}
-                    </div>
+                    <Avatar className="w-9 h-9 rounded-lg">
+                      <AvatarImage src={member.photoUrl || ""} />
+                      <AvatarFallback className="bg-accent text-white font-bold text-sm">
+                        {member.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div>
                       <p className="font-semibold text-sm">{member.name}</p>
                       <p className="text-[10px] text-muted-foreground uppercase">{member.phone || 'No Contact'}</p>

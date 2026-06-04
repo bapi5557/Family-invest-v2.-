@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -27,6 +28,7 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function MembersPage() {
   const { user } = useUser();
@@ -113,9 +115,12 @@ export default function MembersPage() {
           <Card key={member.id} className="overflow-hidden group hover:shadow-md transition-shadow rounded-3xl border-none shadow-sm bg-white">
             <CardHeader className="flex flex-row items-start justify-between pb-2 p-6">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center font-bold text-2xl">
-                  {member.name.charAt(0)}
-                </div>
+                <Avatar className="w-14 h-14 rounded-2xl border-none">
+                  <AvatarImage src={member.photoUrl || ""} />
+                  <AvatarFallback className="bg-primary/5 text-primary font-bold text-2xl flex items-center justify-center">
+                    {member.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
                   <CardTitle className="font-headline text-xl group-hover:text-primary transition-colors">
                     <Link href={`/dashboard/members/${member.id}`}>{member.name}</Link>

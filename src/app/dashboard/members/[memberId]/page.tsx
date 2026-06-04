@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Phone, StickyNote, CreditCard, Loader2, Edit2, Trash2, Lock } from "lucide-react";
+import { ArrowLeft, Phone, StickyNote, CreditCard, Loader2, Edit2, Trash2, Lock, Camera } from "lucide-react";
 import Link from "next/link";
 import { doc, collection, query, where, deleteDoc, orderBy } from "firebase/firestore";
 import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
@@ -21,6 +22,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function MemberProfilePage() {
   const { memberId } = useParams();
@@ -130,9 +132,12 @@ export default function MemberProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 border-none shadow-xl rounded-[2.5rem] overflow-hidden">
           <CardHeader className="text-center bg-slate-50 border-b p-10">
-            <div className="w-28 h-28 rounded-3xl bg-primary text-white flex items-center justify-center font-bold text-5xl mx-auto mb-6 shadow-xl">
-              {member.name.charAt(0)}
-            </div>
+            <Avatar className="w-28 h-28 rounded-3xl mx-auto mb-6 shadow-xl border-4 border-white">
+              <AvatarImage src={member.photoUrl || ""} />
+              <AvatarFallback className="bg-primary text-white font-bold text-5xl flex items-center justify-center">
+                {member.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
             <CardTitle className="font-headline text-3xl text-primary">{member.name}</CardTitle>
             <CardDescription className="flex items-center justify-center gap-2 mt-2">
               <Phone className="w-4 h-4" /> {member.phone || "No contact info"}

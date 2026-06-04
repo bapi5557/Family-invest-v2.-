@@ -1,3 +1,4 @@
+
 export type ExpenseCategory = 
   | "Electric Bill"
   | "LPG Cylinder"
@@ -14,6 +15,7 @@ export interface FamilyMember {
   name: string;
   phone: string;
   notes: string;
+  photoUrl?: string;
   createdAt: number;
   ownerId: string;
 }
