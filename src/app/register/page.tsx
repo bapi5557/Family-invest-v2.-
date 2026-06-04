@@ -29,8 +29,8 @@ export default function RegisterPage() {
     if (!auth) {
       toast({
         variant: "destructive",
-        title: "Configuration Missing",
-        description: "Firebase is not correctly configured. Please check your project settings.",
+        title: "Firebase not initialized",
+        description: "Please check your environment variables and Firebase configuration.",
       });
       return;
     }
@@ -42,27 +42,26 @@ export default function RegisterPage() {
       await updateProfile(userCredential.user, { displayName: name });
       
       toast({
-        title: "Account created!",
-        description: `Welcome to KinVest, ${name}.`,
+        title: "Welcome to KinVest!",
+        description: `Account created for ${name}.`,
       });
       
       router.push("/dashboard");
     } catch (error: any) {
-      console.error("Registration Error:", error);
       errorEmitter.emit('firebase-error', error);
       
-      let errorMessage = "An error occurred during registration.";
+      let errorMessage = "Registration failed. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "This email is already registered.";
+        errorMessage = "This email is already in use.";
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = "The password is too weak.";
+        errorMessage = "Password should be at least 6 characters.";
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "The email address is invalid.";
+        errorMessage = "Invalid email address format.";
       }
 
       toast({
         variant: "destructive",
-        title: "Registration Failed",
+        title: "Registration Error",
         description: errorMessage,
       });
     } finally {
@@ -87,7 +86,7 @@ export default function RegisterPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Firebase Not Configured</AlertTitle>
               <AlertDescription>
-                Authentication services are currently unavailable. Check your .env file.
+                Authentication services are currently unavailable. Ensure your .env file is populated with valid Firebase keys.
               </AlertDescription>
             </Alert>
           )}
@@ -101,6 +100,7 @@ export default function RegisterPage() {
                 className="h-12"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={!auth}
               />
             </div>
             <div className="space-y-2">
@@ -113,6 +113,7 @@ export default function RegisterPage() {
                 className="h-12"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={!auth}
               />
             </div>
             <div className="space-y-2">
@@ -125,6 +126,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={6}
+                disabled={!auth}
               />
             </div>
             <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={loading || !auth}>

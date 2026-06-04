@@ -11,9 +11,8 @@ export function initializeFirebase(): {
   firestore: Firestore | null;
   auth: Auth | null;
 } {
-  const isConfigValid = !!firebaseConfig.apiKey && 
-                        firebaseConfig.apiKey !== "" && 
-                        firebaseConfig.apiKey !== "mock-api-key";
+  // Check if we have at least an API key and Project ID to attempt initialization
+  const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
 
   if (!isConfigValid) {
     return { app: null, firestore: null, auth: null };
