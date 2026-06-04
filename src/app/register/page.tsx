@@ -29,8 +29,8 @@ export default function RegisterPage() {
     if (!auth) {
       toast({
         variant: "destructive",
-        title: "Firebase not initialized",
-        description: "Please check your environment variables and Firebase configuration.",
+        title: "Configuration Error",
+        description: "Firebase Authentication is not initialized. Check your environment variables.",
       });
       return;
     }
@@ -39,29 +39,39 @@ export default function RegisterPage() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName: name });
+      
+      // Update display name if user was created
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: name });
+      }
       
       toast({
         title: "Welcome to KinVest!",
-        description: `Account created for ${name}.`,
+        description: `Account created for ${name}. Redirecting to dashboard...`,
       });
       
       router.push("/dashboard");
     } catch (error: any) {
-      errorEmitter.emit('firebase-error', error);
-      
+      // Handle specific Firebase Auth errors
       let errorMessage = "Registration failed. Please try again.";
+      
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = "This email is already in use.";
-      } else if (error.code === 'auth/weak-password') {
-        errorMessage = "Password should be at least 6 characters.";
+        errorMessage = "This email address is already registered.";
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = "Invalid email address format.";
+        errorMessage = "The email address is badly formatted.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "The password is too weak. Please use at least 6 characters.";
+      } else if (error.code === 'auth/operation-not-allowed') {
+        errorMessage = "Email/Password sign-in is not enabled in the Firebase Console. Please enable it in the Authentication settings.";
+      } else {
+        // Emit for central logging if it's an unexpected error
+        errorEmitter.emit('firebase-error', error);
+        errorMessage = error.message || errorMessage;
       }
 
       toast({
         variant: "destructive",
-        title: "Registration Error",
+        title: "Registration Failed",
         description: errorMessage,
       });
     } finally {
@@ -71,25 +81,26 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <Link href="/" className="absolute top-8 left-8 flex items-center text-sm font-medium text-muted-foreground hover:text-primary">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
+      <Link href="/" className="absolute top-8 left-8 flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
       </Link>
 
       <Card className="w-full max-w-md border-none shadow-2xl overflow-hidden rounded-[2rem]">
         <CardHeader className="bg-primary text-white p-8 text-center">
           <CardTitle className="text-3xl font-headline">Join KinVest</CardTitle>
-          <CardDescription className="text-primary-foreground/70">Start managing your family's future</CardDescription>
+          <CardDescription className="text-primary-foreground/70 font-body">Start managing your family's future</CardDescription>
         </CardHeader>
         <CardContent className="p-8 space-y-4">
           {!auth && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Firebase Not Configured</AlertTitle>
               <AlertDescription>
-                Authentication services are currently unavailable. Ensure your .env file is populated with valid Firebase keys.
+                Registration is unavailable. Please ensure your environment variables are set in the .env file.
               </AlertDescription>
             </Alert>
           )}
+          
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -97,10 +108,10 @@ export default function RegisterPage() {
                 id="name" 
                 placeholder="John Doe" 
                 required 
-                className="h-12"
+                className="h-12 rounded-xl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={!auth}
+                disabled={loading || !auth}
               />
             </div>
             <div className="space-y-2">
@@ -110,10 +121,10 @@ export default function RegisterPage() {
                 type="email" 
                 placeholder="name@example.com" 
                 required 
-                className="h-12"
+                className="h-12 rounded-xl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={!auth}
+                disabled={loading || !auth}
               />
             </div>
             <div className="space-y-2">
@@ -122,27 +133,34 @@ export default function RegisterPage() {
                 id="password" 
                 type="password" 
                 required 
-                className="h-12"
+                className="h-12 rounded-xl"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 minLength={6}
-                disabled={!auth}
+                disabled={loading || !auth}
               />
+              <p className="text-[10px] text-muted-foreground">Minimum 6 characters</p>
             </div>
-            <Button type="submit" className="w-full h-12 text-lg shadow-lg" disabled={loading || !auth}>
+            <Button type="submit" className="w-full h-12 text-lg shadow-lg rounded-xl mt-6" disabled={loading || !auth}>
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="p-8 pt-0 text-center">
-          <p className="text-sm text-muted-foreground w-full">
+        <CardFooter className="p-8 pt-0 text-center border-t border-slate-50 mt-4">
+          <p className="text-sm text-muted-foreground w-full mt-4">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary font-bold hover:underline">
+            <Link href="/login" className="text-primary font-bold hover:underline transition-all">
               Log in
             </Link>
           </p>
         </CardFooter>
       </Card>
+      
+      <div className="mt-8 text-center max-w-xs">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-widest leading-relaxed">
+          By registering, you agree to our terms of service and privacy policy.
+        </p>
+      </div>
     </div>
   );
 }
