@@ -15,6 +15,7 @@ export interface FamilyMember {
   phone: string;
   notes: string;
   createdAt: number;
+  ownerId: string;
 }
 
 export interface Expense {
@@ -25,6 +26,12 @@ export interface Expense {
   description: string;
   date: number;
   createdAt: number;
+  ownerId: string;
+}
+
+export interface FamilySettings {
+  adminPin: string;
+  updatedAt: number;
 }
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [

@@ -1,103 +1,196 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut } from "lucide-react";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2 } from "lucide-react";
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { updateEmail, updatePassword, signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { FamilySettings } from "@/lib/types";
 
 export default function SettingsPage() {
+  const { user } = useUser();
+  const auth = useAuth();
+  const db = useFirestore();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [adminPin, setAdminPin] = useState("");
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+
+  const { data: settings, loading: loadingSettings } = useDoc<FamilySettings>(settingsRef);
+
+  useEffect(() => {
+    if (user) setNewEmail(user.email || "");
+  }, [user]);
+
+  const handleVerifyPin = () => {
+    const correctPin = settings?.adminPin || "1234";
+    if (pinInput === correctPin) {
+      setIsAuthorized(true);
+      toast({ title: "Admin Access Granted", description: "You can now manage sensitive settings." });
+    } else {
+      toast({ variant: "destructive", title: "Invalid PIN", description: "Please enter the correct family admin PIN." });
+    }
+    setPinInput("");
+  };
+
+  const handleUpdateAccount = async () => {
+    if (!auth?.currentUser) return;
+    setLoading(true);
+    try {
+      if (newEmail !== auth.currentUser.email) {
+        await updateEmail(auth.currentUser, newEmail);
+      }
+      if (newPassword) {
+        await updatePassword(auth.currentUser, newPassword);
+      }
+      toast({ title: "Account Updated", description: "Family credentials updated successfully." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Update Failed", description: "Security requirement: Please log out and back in to change credentials." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePin = () => {
+    if (!db || !user || !adminPin) return;
+    const docRef = doc(db, "settings", user.uid);
+    setDoc(docRef, { adminPin, updatedAt: Date.now() }, { merge: true });
+    toast({ title: "PIN Updated", description: "New Admin PIN is now active." });
+  };
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push("/");
+  };
+
+  if (!isAuthorized && !loadingSettings) {
+    return (
+      <div className="max-w-md mx-auto py-20 space-y-6 text-center animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-10 h-10 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-headline">Admin Access</h1>
+          <p className="text-muted-foreground">Enter your family PIN to manage account settings.</p>
+        </div>
+        <Card className="p-8 border-none shadow-xl rounded-[2rem]">
+          <div className="space-y-4">
+            <Input 
+              type="password" 
+              placeholder="Enter 4-digit PIN" 
+              maxLength={4} 
+              className="text-center text-2xl tracking-[1em] h-16 rounded-2xl"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleVerifyPin()}
+            />
+            <Button className="w-full h-12 rounded-xl text-lg" onClick={handleVerifyPin}>
+              Verify Identity
+            </Button>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Default PIN is 1234</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-headline text-primary">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and app preferences</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-headline text-primary">Family Admin</h1>
+          <p className="text-muted-foreground">Secure control center for {user?.displayName} Family</p>
+        </div>
+        <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-2">
+          <CheckCircle2 className="w-3 h-3" /> Admin Mode
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3">
-              <Key className="w-5 h-5 text-primary" />
-              <div>
-                <CardTitle className="font-headline">Security</CardTitle>
-                <CardDescription>Change password and secure your account</CardDescription>
+          <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b p-8">
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-primary" />
+                <div>
+                  <CardTitle className="font-headline">Shared Credentials</CardTitle>
+                  <CardDescription>Update the family login details used by everyone.</CardDescription>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
+            <CardContent className="p-8 space-y-6">
               <div className="grid gap-2">
-                <Label htmlFor="current">Current Password</Label>
-                <Input id="current" type="password" />
+                <Label htmlFor="email">Shared Family Email</Label>
+                <Input id="email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-12 rounded-xl" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="new">New Password</Label>
-                <Input id="new" type="password" />
+                <Label htmlFor="pass">New Shared Password</Label>
+                <Input id="pass" type="password" placeholder="Leave blank to keep current" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 rounded-xl" />
               </div>
-              <Button className="w-full sm:w-auto">Update Password</Button>
+              <Button className="w-full h-12 rounded-xl" onClick={handleUpdateAccount} disabled={loading}>
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Save Shared Changes"}
+              </Button>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-3">
-              <Bell className="w-5 h-5 text-primary" />
-              <div>
-                <CardTitle className="font-headline">Notifications</CardTitle>
-                <CardDescription>Control how you receive alerts</CardDescription>
+          <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden">
+            <CardHeader className="bg-slate-50 border-b p-8">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-accent" />
+                <div>
+                  <CardTitle className="font-headline">Admin Security</CardTitle>
+                  <CardDescription>Change the PIN required for Admin actions.</CardDescription>
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6 pt-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Expense Alerts</p>
-                  <p className="text-xs text-muted-foreground">Notify when high-value expenses are added</p>
-                </div>
-                <Switch defaultChecked />
+            <CardContent className="p-8 space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="pin">New 4-Digit PIN</Label>
+                <Input id="pin" type="password" maxLength={4} placeholder="e.g. 5678" value={adminPin} onChange={(e) => setAdminPin(e.target.value)} className="h-12 rounded-xl text-center text-xl tracking-widest" />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Monthly Summary</p>
-                  <p className="text-xs text-muted-foreground">Receive AI insights via email each month</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-destructive/20">
-             <CardHeader className="flex flex-row items-center gap-3">
-              <LogOut className="w-5 h-5 text-destructive" />
-              <div>
-                <CardTitle className="font-headline text-destructive">Account Actions</CardTitle>
-                <CardDescription>Careful with these options</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <Button variant="destructive" className="w-full sm:w-auto">Sign Out of All Devices</Button>
+              <Button variant="outline" className="w-full h-12 rounded-xl border-accent text-accent hover:bg-accent/5" onClick={handleUpdatePin}>
+                Update Admin PIN
+              </Button>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-headline text-lg">Backup & Data</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full justify-start text-sm border-slate-200">
-                <Database className="w-4 h-4 mr-3" /> Backup Data
+          <Card className="rounded-[2rem] shadow-lg border-none bg-primary text-white p-8">
+            <CardTitle className="font-headline mb-4">Quick Links</CardTitle>
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <Database className="w-4 h-4 mr-3" /> Data Export
               </Button>
-              <Button variant="outline" className="w-full justify-start text-sm border-slate-200">
-                <Shield className="w-4 h-4 mr-3" /> Privacy Policy
+              <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <Shield className="w-4 h-4 mr-3" /> Family Rules
               </Button>
-              <Button variant="outline" className="w-full justify-start text-sm border-slate-200">
-                <Smartphone className="w-4 h-4 mr-3" /> Mobile App Link
+              <Button variant="outline" className="w-full justify-start h-12 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-3" /> Family Logout
               </Button>
-            </CardContent>
+            </div>
           </Card>
-
+          
           <div className="text-center p-4">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">KinVest v1.0.4</p>
+             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">KinVest Admin Panel</p>
           </div>
         </div>
       </div>
