@@ -9,6 +9,7 @@ import { useMemo } from 'react';
 
 /**
  * Initializes Firebase services with production configuration.
+ * Rules version: 2024-05-24.1 (Triggering redeploy for shared account permissions)
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;

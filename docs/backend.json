@@ -9,8 +9,8 @@
         "name": { "type": "string", "description": "The member's full name." },
         "phone": { "type": "string", "description": "The member's contact number." },
         "notes": { "type": "string", "description": "Additional notes about the member." },
-        "photoUrl": { "type": "string", "description": "URL to the member's profile photo stored in Firebase Storage." },
-        "ownerId": { "type": "string", "description": "The UID of the user who owns this member record." },
+        "photoUrl": { "type": "string", "description": "URL to the member's profile photo." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
         "createdAt": { "type": "number", "description": "Timestamp of creation." }
       },
       "required": ["name", "ownerId", "createdAt"]
@@ -26,10 +26,10 @@
           "description": "The type of expense."
         },
         "amount": { "type": "number", "description": "The cost of the expense." },
-        "description": { "type": "string", "description": "Details about what was purchased." },
-        "date": { "type": "number", "description": "The date the expense occurred (timestamp)." },
-        "memberId": { "type": "string", "description": "Optional reference to a family member." },
-        "ownerId": { "type": "string", "description": "The UID of the user who recorded this expense." },
+        "description": { "type": "string", "description": "Details about the purchase." },
+        "date": { "type": "number", "description": "Date of expense (timestamp)." },
+        "memberId": { "type": "string", "description": "Reference to a family member." },
+        "ownerId": { "type": "string", "description": "The UID of the shared family account." },
         "createdAt": { "type": "number", "description": "Timestamp of record creation." }
       },
       "required": ["category", "amount", "date", "ownerId", "createdAt"]
@@ -39,7 +39,8 @@
       "description": "Global settings for a family account.",
       "type": "object",
       "properties": {
-        "adminPin": { "type": "string", "description": "A 4-digit PIN for sensitive family actions." },
+        "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
+        "familyName": { "type": "string", "description": "The name of the family." },
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
       },
       "required": ["adminPin"]
@@ -51,7 +52,7 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members managed by users."
+      "description": "Collection of family members."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",

@@ -45,6 +45,7 @@ export default function RegisterPage() {
         await updateProfile(user, { displayName: familyName });
 
         // INITIALIZE PERMANENT FAMILY CLOUD SETTINGS
+        // Use setDoc at the user's specific settings path
         await setDoc(doc(db, "settings", user.uid), {
           adminPin: "1234",
           updatedAt: Date.now(),
