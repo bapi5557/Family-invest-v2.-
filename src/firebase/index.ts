@@ -7,21 +7,18 @@ import { firebaseConfig } from './config';
 import { useMemo } from 'react';
 
 /**
- * Initializes Firebase services if configuration is available.
- * Gracefully handles missing configuration to prevent app crashes.
+ * Initializes Firebase services with production configuration.
  */
 export function initializeFirebase(): {
   app: FirebaseApp | null;
   firestore: Firestore | null;
   auth: Auth | null;
 } {
-  // Validate basic config existence
   const isConfigValid = !!firebaseConfig.apiKey && 
-                        firebaseConfig.apiKey !== 'YOUR_API_KEY' &&
-                        !!firebaseConfig.projectId;
+                        firebaseConfig.apiKey !== 'YOUR_API_KEY';
 
   if (!isConfigValid) {
-    console.warn("Firebase configuration is missing or invalid. Check your .env file.");
+    console.warn("Firebase configuration is incomplete. Authentication will be limited.");
     return { app: null, firestore: null, auth: null };
   }
 
