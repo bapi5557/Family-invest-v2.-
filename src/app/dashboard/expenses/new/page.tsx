@@ -17,10 +17,13 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc, query, where } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
 import { EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { query, where } from "firebase/firestore";
 
 export default function NewExpensePage() {
   const [loading, setLoading] = useState(false);
@@ -40,31 +43,35 @@ export default function NewExpensePage() {
 
   const { data: members } = useCollection<FamilyMember>(membersQuery);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !user) return;
     setLoading(true);
-    try {
-      addDoc(collection(db, "expenses"), {
-        category,
-        amount: parseFloat(amount),
-        description,
-        memberId: memberId === "unassigned" ? null : memberId,
-        date: Date.now(),
-        ownerId: user.uid,
-        createdAt: Date.now(),
-      });
-      toast({ title: "Success", description: "Expense recorded." });
-      router.push("/dashboard");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to add expense.",
-      });
-    } finally {
-      setLoading(false);
-    }
+
+    const expenseData = {
+      category,
+      amount: parseFloat(amount),
+      description,
+      memberId: memberId === "unassigned" ? null : memberId,
+      date: Date.now(),
+      ownerId: user.uid,
+      createdAt: Date.now(),
+    };
+
+    addDoc(collection(db, "expenses"), expenseData)
+      .then(() => {
+        toast({ title: "Success", description: "Expense recorded." });
+        router.push("/dashboard");
+      })
+      .catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: "expenses",
+          operation: "create",
+          requestResourceData: expenseData,
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      })
+      .finally(() => setLoading(false));
   };
 
   return (

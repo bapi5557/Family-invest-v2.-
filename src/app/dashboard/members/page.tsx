@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Phone, StickyNote, MoreVertical, Search, Edit2, Trash2, Loader2 } from "lucide-react";
+import { Plus, Phone, StickyNote, MoreVertical, Search, Edit2, Trash2, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { collection, query, where, deleteDoc, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { FamilyMember } from "@/lib/types";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function MembersPage() {
   const { user } = useUser();
@@ -30,7 +32,16 @@ export default function MembersPage() {
 
   const handleDelete = (memberId: string) => {
     if (!db) return;
-    deleteDoc(doc(db, "members", memberId));
+    if (confirm("Remove this family member?")) {
+      const docRef = doc(db, "members", memberId);
+      deleteDoc(docRef).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: "delete",
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      });
+    }
   };
 
   if (loading) {
@@ -53,11 +64,6 @@ export default function MembersPage() {
             <Plus className="w-4 h-4 mr-2" /> Add Member
           </Link>
         </Button>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search members..." className="pl-10" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

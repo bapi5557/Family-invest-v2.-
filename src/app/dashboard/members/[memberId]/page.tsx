@@ -10,6 +10,8 @@ import Link from "next/link";
 import { doc, collection, query, where, deleteDoc, orderBy } from "firebase/firestore";
 import { useDoc, useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { FamilyMember, Expense } from "@/lib/types";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function MemberProfilePage() {
   const { memberId } = useParams();
@@ -35,11 +37,19 @@ export default function MemberProfilePage() {
 
   const { data: expenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!db || !memberId) return;
     if (confirm("Are you sure you want to delete this member?")) {
-      deleteDoc(doc(db, "members", memberId as string));
-      router.push("/dashboard/members");
+      const docRef = doc(db, "members", memberId as string);
+      deleteDoc(docRef)
+        .then(() => router.push("/dashboard/members"))
+        .catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
+            path: docRef.path,
+            operation: "delete",
+          });
+          errorEmitter.emit("permission-error", permissionError);
+        });
     }
   };
 
