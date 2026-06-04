@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -19,7 +18,6 @@ import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function EditMemberPage() {
   const { memberId } = useParams();
-  const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
@@ -45,16 +43,12 @@ export default function EditMemberPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!db || !memberId) return;
-    setLoading(true);
 
     const updateData = { name, phone, notes };
     const docRef = doc(db, "members", memberId as string);
 
+    // NON-BLOCKING: Update Firestore and immediately redirect
     updateDoc(docRef, updateData)
-      .then(() => {
-        toast({ title: "Updated", description: "Member details updated." });
-        router.push(`/dashboard/members/${memberId}`);
-      })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
@@ -62,58 +56,63 @@ export default function EditMemberPage() {
           requestResourceData: updateData,
         });
         errorEmitter.emit("permission-error", permissionError);
-      })
-      .finally(() => setLoading(false));
+      });
+
+    toast({ title: "Changes Saved", description: "Member profile updated successfully." });
+    router.push(`/dashboard/members/${memberId}`);
   };
 
   if (loadingMember) {
-    return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
+    return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <Link href={`/dashboard/members/${memberId}`} className="flex items-center text-sm text-muted-foreground hover:text-primary">
+    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
+      <Link href={`/dashboard/members/${memberId}`} className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Profile
       </Link>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-[2rem] shadow-xl overflow-hidden border-none">
+        <CardHeader className="bg-accent text-white p-8">
           <CardTitle className="text-2xl font-headline">Edit Member</CardTitle>
-          <CardDescription>Update profile for {member?.name}</CardDescription>
+          <CardDescription className="text-accent-foreground/80">Update details for {member?.name}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="text-sm font-semibold">Full Name</Label>
               <Input 
                 id="name" 
                 required 
+                className="h-12 rounded-xl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone" className="text-sm font-semibold">Phone Number</Label>
               <Input 
                 id="phone" 
+                className="h-12 rounded-xl"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes" className="text-sm font-semibold">Notes</Label>
               <Textarea 
                 id="notes" 
+                className="min-h-[120px] rounded-xl"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Changes
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" className="flex-1 h-12 text-lg rounded-xl shadow-lg">
+                <Save className="w-5 h-5 mr-2" />
+                Update Profile
               </Button>
-              <Button type="button" variant="outline" asChild>
+              <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild>
                 <Link href={`/dashboard/members/${memberId}`}>Cancel</Link>
               </Button>
             </div>
