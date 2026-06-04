@@ -39,8 +39,9 @@ export default function InviteManagementPage() {
     if (!db || !user) return;
     setIsGenerating(true);
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const code = `KINVEST-${randomSuffix}`;
+    // Generate a secure 10-digit numeric code
+    const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+    
     const inviteData = {
       code,
       ownerId: user.uid,
@@ -51,7 +52,7 @@ export default function InviteManagementPage() {
 
     try {
       await addDoc(collection(db, "invites"), inviteData);
-      toast({ title: "Invite Code Generated", description: `Code ${code} is active for 7 days.` });
+      toast({ title: "Invite Code Generated", description: `10-digit code ${code} is active for 7 days.` });
     } catch (err) {
       const permsError = new FirestorePermissionError({ path: "invites", operation: "create", requestResourceData: inviteData });
       errorEmitter.emit("permission-error", permsError);
@@ -105,7 +106,7 @@ export default function InviteManagementPage() {
 
       <div>
         <h1 className="text-3xl font-headline text-primary">Family Invites</h1>
-        <p className="text-muted-foreground font-body">Manage member access codes and QR invitations.</p>
+        <p className="text-muted-foreground font-body">Manage secure 10-digit member access codes and QR invitations.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -134,7 +135,7 @@ export default function InviteManagementPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="text-2xl font-black tracking-tight text-primary font-code">{invite.code}</h3>
+                  <h3 className="text-2xl font-black tracking-[0.1em] text-primary font-code">{invite.code}</h3>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                     <Clock className="w-3 h-3" />
                     Expires {format(invite.expiresAt, "PP")}
@@ -163,7 +164,7 @@ export default function InviteManagementPage() {
           <div className="col-span-full py-20 text-center space-y-4 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
             <QrCode className="w-12 h-12 text-slate-200 mx-auto" />
             <p className="text-slate-500 font-bold">No invite codes generated yet.</p>
-            <Button onClick={generateInvite} variant="link" className="text-primary font-bold">Create your first invite</Button>
+            <Button onClick={generateInvite} variant="link" className="text-primary font-bold">Create your first 10-digit invite</Button>
           </div>
         )}
       </div>
@@ -186,8 +187,8 @@ export default function InviteManagementPage() {
                 />
               </div>
               <div className="text-center space-y-1">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Invite Code</p>
-                <p className="text-2xl font-code font-bold text-primary">{selectedInvite.code}</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">10-Digit Invite Code</p>
+                <p className="text-2xl font-code font-bold text-primary tracking-widest">{selectedInvite.code}</p>
               </div>
               <Button className="w-full h-12 rounded-xl font-bold" onClick={() => copyToClipboard(joinUrl(selectedInvite.code))}>
                 Copy Invite Link

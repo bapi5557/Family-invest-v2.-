@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, getDocs, doc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore";
 import { useFirestore, useUser } from "@/firebase";
-import { Invite, FamilySettings } from "@/lib/types";
+import { Invite } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 function JoinFamilyForm() {
@@ -38,17 +38,19 @@ function JoinFamilyForm() {
     setIsVerifying(true);
     setError(null);
 
+    const cleanCode = code.trim();
+
     try {
       // 1. Find the invite
       const invitesQuery = query(
         collection(db, "invites"), 
-        where("code", "==", code.trim().toUpperCase()),
+        where("code", "==", cleanCode),
         where("revoked", "==", false)
       );
       const inviteSnap = await getDocs(invitesQuery);
 
       if (inviteSnap.empty) {
-        throw new Error("Invalid or revoked invite code.");
+        throw new Error("Invalid or revoked 10-digit invite code.");
       }
 
       const inviteDoc = inviteSnap.docs[0];
@@ -106,7 +108,7 @@ function JoinFamilyForm() {
       <CardHeader className="bg-accent text-white p-10 text-center relative">
         <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles className="w-20 h-20" /></div>
         <CardTitle className="text-4xl font-headline tracking-tight">Join Family</CardTitle>
-        <CardDescription className="text-accent-foreground/80 font-medium">Connect to a shared family ledger via invite code.</CardDescription>
+        <CardDescription className="text-accent-foreground/80 font-medium">Connect to a shared family ledger via 10-digit code.</CardDescription>
       </CardHeader>
       <CardContent className="p-10">
         {!success ? (
@@ -115,11 +117,12 @@ function JoinFamilyForm() {
               <Label htmlFor="code" className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Enter 10-Digit Invite Code</Label>
               <Input 
                 id="code" 
-                placeholder="KINVEST-XXXX" 
+                placeholder="1234567890" 
                 required 
+                maxLength={10}
                 className="h-16 rounded-2xl text-center text-3xl font-code font-bold tracking-[0.2em] uppercase border-slate-200 focus:ring-accent"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))}
                 disabled={isVerifying}
               />
               {error && <p className="text-sm font-bold text-destructive mt-2">{error}</p>}
