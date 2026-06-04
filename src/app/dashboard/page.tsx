@@ -4,9 +4,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus, QrCode, Copy } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, AlertCircle, Share2, Loader2, Bell, CalendarClock, UserPlus, QrCode, Copy, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, doc } from "firebase/firestore";
+import { collection, query, where, doc, addDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { Expense, FamilyMember, FamilySettings, Reminder, Invite } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -32,6 +34,7 @@ export default function DashboardPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     window.history.pushState({ dashboard: true }, "");
@@ -69,14 +72,13 @@ export default function DashboardPage() {
 
   const invitesQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
-    // Only the admin (owner) can see invites they created
     return query(collection(db, "invites"), where("ownerId", "==", user.uid), where("revoked", "==", false));
   }, [db, user]);
 
   const { data: allExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
   const { data: allReminders, loading: loadingReminders } = useCollection<Reminder>(remindersQuery);
-  const { data: invites } = useCollection<Invite>(invitesQuery);
+  const { data: invites, loading: loadingInvites } = useCollection<Invite>(invitesQuery);
 
   const activeInvites = useMemo(() => {
     if (!invites) return [];
@@ -103,6 +105,27 @@ export default function DashboardPage() {
     toast({ title: "Code Copied", description: "10-digit invite code is ready to share." });
   };
 
+  const handleGenerateCode = async () => {
+    if (!db || !user) return;
+    setIsGenerating(true);
+    const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
+    const inviteData = {
+      code,
+      ownerId: user.uid,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      revoked: false,
+    };
+    try {
+      await addDoc(collection(db, "invites"), inviteData);
+      toast({ title: "Invite Code Ready", description: `Your 10-digit code is: ${code}` });
+    } catch (e) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'invites', operation: 'create', requestResourceData: inviteData }));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleExitApp = () => { window.location.href = "about:blank"; };
 
   return (
@@ -116,6 +139,7 @@ export default function DashboardPage() {
         </Alert>
       )}
 
+      {/* ADMIN INVITE SECTION */}
       {!settings?.familyOwnerId && settings?.ownerId === user?.uid && (
         <div className="space-y-4">
           <Card className="bg-accent/5 border border-accent/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -124,27 +148,36 @@ export default function DashboardPage() {
                 <UserPlus className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-bold text-accent">Invite Family Members</p>
+                <p className="font-bold text-accent text-lg">Family Invitation System</p>
                 <p className="text-sm text-muted-foreground">Admins can generate secure 10-digit codes for instant joining.</p>
               </div>
             </div>
-            <Button size="sm" className="rounded-xl h-10 px-6 bg-accent hover:bg-accent/90" asChild>
-              <Link href="/dashboard/settings/invites">Manage Invites</Link>
-            </Button>
+            {activeInvites.length === 0 ? (
+              <Button onClick={handleGenerateCode} disabled={isGenerating} className="rounded-xl h-12 px-8 bg-accent hover:bg-accent/90 shadow-lg animate-pulse">
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
+                Generate Your First Invite Code
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" className="rounded-xl h-10 px-6 border-accent text-accent" asChild>
+                <Link href="/dashboard/settings">Manage All Invites</Link>
+              </Button>
+            )}
           </Card>
 
           {activeInvites.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeInvites.map((invite) => (
-                <Card key={invite.id} className="rounded-3xl border-none shadow-md bg-white overflow-hidden p-6 border-l-4 border-accent">
+                <Card key={invite.id} className="rounded-3xl border-none shadow-md bg-white overflow-hidden p-6 border-l-4 border-accent relative group">
                    <div className="flex items-center justify-between mb-2">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-md">Active Invite</span>
-                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => copyCode(invite.code)}>
-                        <Copy className="w-4 h-4" />
+                     <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-md">Active 10-Digit Code</span>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-accent/5" onClick={() => copyCode(invite.code)}>
+                        <Copy className="w-4 h-4 text-accent" />
                      </Button>
                    </div>
-                   <p className="text-2xl font-code font-bold text-primary tracking-widest">{invite.code}</p>
-                   <p className="text-[10px] text-muted-foreground mt-1">Share this 10-digit code with family.</p>
+                   <p className="text-3xl font-code font-black text-primary tracking-[0.2em]">{invite.code}</p>
+                   <p className="text-[10px] text-muted-foreground mt-2 font-medium flex items-center gap-1">
+                     <CalendarClock className="w-3 h-3" /> Expires {format(invite.expiresAt, "PP")}
+                   </p>
                 </Card>
               ))}
             </div>

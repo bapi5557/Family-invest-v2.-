@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode, ShieldCheck, Plus } from "lucide-react";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode, ShieldCheck, Plus as PlusIcon, Sparkles } from "lucide-react";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, setDoc, collection, query, where, addDoc, updateDoc } from "firebase/firestore";
 import { updateEmail, updatePassword, signOut } from "firebase/auth";
@@ -189,13 +190,13 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-3">
                     <UserPlus className="w-6 h-6 text-accent" />
                     <div>
-                      <CardTitle className="font-headline text-accent">Active Invitations</CardTitle>
-                      <CardDescription>Generated 10-digit codes for your family.</CardDescription>
+                      <CardTitle className="font-headline text-accent">Family Access Codes</CardTitle>
+                      <CardDescription>Share these 10-digit codes with family members.</CardDescription>
                     </div>
                   </div>
-                  <Button onClick={generateInvite} disabled={isGenerating} size="sm" className="rounded-xl h-10 bg-accent hover:bg-accent/90">
-                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-                    New Code
+                  <Button onClick={generateInvite} disabled={isGenerating} size="sm" className="rounded-xl h-10 bg-accent hover:bg-accent/90 shadow-md">
+                    {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                    New 10-Digit Code
                   </Button>
                 </div>
               </CardHeader>
@@ -207,26 +208,26 @@ export default function SettingsPage() {
                     {activeInvites.map((invite) => (
                       <div key={invite.id} className="flex items-center justify-between p-5 bg-white rounded-2xl border border-accent/10 shadow-sm transition-all hover:shadow-md">
                         <div className="space-y-1">
-                          <p className="text-2xl font-code font-black text-primary tracking-widest">{invite.code}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Expires {format(invite.expiresAt, "MMM dd")}
+                          <p className="text-3xl font-code font-black text-primary tracking-[0.2em]">{invite.code}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1 font-bold">
+                            <Clock className="w-3 h-3" /> Expires {format(invite.expiresAt, "MMM dd, yyyy")}
                           </p>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => copyCode(invite.code)}>
-                            <Copy className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-accent/5" onClick={() => copyCode(invite.code)}>
+                            <Copy className="w-5 h-5 text-accent" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive" onClick={() => revokeInvite(invite.id)}>
-                            <Trash2 className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-destructive hover:bg-red-50" onClick={() => revokeInvite(invite.id)}>
+                            <Trash2 className="w-5 h-5" />
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-10 border-2 border-dashed border-accent/10 rounded-2xl bg-white/50">
-                    <p className="text-sm text-slate-400 font-medium">No active invite codes.</p>
-                    <Button variant="link" className="text-accent text-xs font-bold uppercase tracking-widest mt-1" onClick={generateInvite}>Click to generate first code</Button>
+                  <div className="text-center py-12 border-2 border-dashed border-accent/10 rounded-2xl bg-white/50">
+                    <p className="text-sm text-slate-400 font-medium">No active 10-digit codes found.</p>
+                    <Button variant="link" className="text-accent text-xs font-bold uppercase tracking-widest mt-2" onClick={generateInvite}>Click to create your first code</Button>
                   </div>
                 )}
               </CardContent>
