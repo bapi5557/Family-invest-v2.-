@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from "react";
@@ -63,10 +62,10 @@ export default function NewMemberPage() {
       let photoUrl = "";
       
       if (photoFile && storage) {
-        // 1. COMPRESS AND RESIZE
+        // 1. FAST COMPRESS AND RESIZE
         const optimizedBlob = await compressAndResizeImage(photoFile);
         
-        // 2. RESUMABLE UPLOAD WITH PROGRESS
+        // 2. UPLOAD WITH PROGRESS
         const storageRef = ref(storage, `member_photos/${user.uid}_${Date.now()}.jpg`);
         const uploadTask = uploadBytesResumable(storageRef, optimizedBlob);
 
@@ -110,7 +109,7 @@ export default function NewMemberPage() {
       router.push("/dashboard");
     } catch (error: any) {
       console.error(error);
-      setFormError("Failed to optimize photo or save member data.");
+      setFormError("Failed to process photo or save member data.");
     } finally {
       setIsUploading(false);
     }
@@ -125,7 +124,7 @@ export default function NewMemberPage() {
       <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden">
         <CardHeader className="bg-primary text-white p-8">
           <CardTitle className="text-3xl font-headline">Add Member</CardTitle>
-          <CardDescription className="text-primary-foreground/80">Optimize profile photo for faster family sync.</CardDescription>
+          <CardDescription className="text-primary-foreground/80">Instantly sync family profiles.</CardDescription>
         </CardHeader>
         <CardContent className="p-8">
           {formError && (
@@ -215,7 +214,7 @@ export default function NewMemberPage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button type="submit" className="flex-1 h-12 text-lg shadow-lg rounded-xl" disabled={isUploading}>
                 {isUploading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Save className="w-5 h-5 mr-2" />}
-                {isUploading ? "Optimizing..." : "Quick Save"}
+                {isUploading ? "Processing..." : "Quick Save"}
               </Button>
               <Button type="button" variant="outline" className="flex-1 h-12 rounded-xl" asChild disabled={isUploading}>
                 <Link href="/dashboard">Cancel</Link>

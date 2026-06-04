@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -74,7 +73,7 @@ export default function EditMemberPage() {
       let finalPhotoUrl = photoUrl;
       
       if (photoFile && storage) {
-        // 1. COMPRESS AND RESIZE ON CLIENT
+        // 1. FAST COMPRESS AND RESIZE
         const optimizedBlob = await compressAndResizeImage(photoFile);
         
         // 2. RESUMABLE UPLOAD
@@ -110,11 +109,11 @@ export default function EditMemberPage() {
           errorEmitter.emit("permission-error", permissionError);
         });
 
-      toast({ title: "Profile Updated", description: "Changes optimized and saved instantly." });
+      toast({ title: "Profile Updated", description: "Changes saved instantly." });
       router.push(`/dashboard/members/${memberId}`);
     } catch (error: any) {
       console.error(error);
-      toast({ variant: "destructive", title: "Update Failed", description: "Could not optimize or upload photo." });
+      toast({ variant: "destructive", title: "Update Failed", description: "Could not process or upload photo." });
     } finally {
       setIsUploading(false);
     }

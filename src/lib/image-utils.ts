@@ -1,52 +1,51 @@
-
 /**
- * Utility for client-side image processing to optimize uploads.
+ * Utility for fast client-side image processing to optimize uploads.
+ * Uses hardware-accelerated createImageBitmap for maximum speed.
  */
 export async function compressAndResizeImage(file: File, maxWidth = 300, maxHeight = 300): Promise<Blob> {
+  // Use modern, faster decoding
+  const bitmap = await createImageBitmap(file);
+  
+  const canvas = document.createElement('canvas');
+  let { width, height } = bitmap;
+
+  // Calculate new dimensions maintain aspect ratio
+  if (width > height) {
+    if (width > maxWidth) {
+      height *= maxWidth / width;
+      width = maxWidth;
+    }
+  } else {
+    if (height > maxHeight) {
+      width *= maxHeight / height;
+      height = maxHeight;
+    }
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low'; // High performance setting
+    ctx.drawImage(bitmap, 0, 0, width, height);
+  }
+  
+  // Clean up bitmap reference
+  bitmap.close();
+
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        // Calculate new dimensions
-        if (width > height) {
-          if (width > maxWidth) {
-            height *= maxWidth / width;
-            width = maxWidth;
-          }
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
         } else {
-          if (height > maxHeight) {
-            width *= maxHeight / height;
-            height = maxHeight;
-          }
+          reject(new Error('Fast compression failed'));
         }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        // Convert to Blob (JPEG for high compression)
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Canvas to Blob conversion failed'));
-            }
-          },
-          'image/jpeg',
-          0.8 // Quality
-        );
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
+      },
+      'image/jpeg',
+      0.6 // Balanced quality for speed and size
+    );
   });
 }
