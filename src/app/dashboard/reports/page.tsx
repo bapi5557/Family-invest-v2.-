@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -7,7 +8,7 @@ import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2, TrendingDo
 import { monthlyExpenseEfficiencySummary, MonthlyExpenseEfficiencySummaryOutput } from "@/ai/flows/monthly-expense-efficiency-summary";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { Expense } from "@/lib/types";
 
 export default function ReportsPage() {
@@ -16,16 +17,23 @@ export default function ReportsPage() {
   const db = useFirestore();
   const { user } = useUser();
 
+  // Optimization: Removed orderBy("date") to avoid composite index requirement
+  // which can trigger permission errors if the index doesn't exist.
   const expensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
       collection(db, "expenses"),
-      where("ownerId", "==", user.uid),
-      orderBy("date", "desc")
+      where("ownerId", "==", user.uid)
     );
   }, [db, user]);
 
-  const { data: expenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+  const { data: rawExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
+
+  // Handle sorting and calculation in memory
+  const expenses = useMemo(() => {
+    if (!rawExpenses) return [];
+    return [...rawExpenses].sort((a, b) => b.date - a.date);
+  }, [rawExpenses]);
 
   const totalSpent = useMemo(() => {
     return expenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0;

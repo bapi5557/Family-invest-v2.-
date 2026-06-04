@@ -3,7 +3,7 @@
   "entities": {
     "FamilyMember": {
       "title": "Family Member",
-      "description": "A profile for a family member within the network. Access is restricted to the family owner identified by ownerId.",
+      "description": "A profile for a family member within the network. Access is restricted to the family owner identified by the ownerId field.",
       "type": "object",
       "properties": {
         "name": { "type": "string", "description": "The member's full name." },
@@ -17,7 +17,7 @@
     },
     "Expense": {
       "title": "Expense",
-      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field.",
+      "description": "A record of a household expense. Access is restricted to the family owner identified by the ownerId field. Queries must filter by ownerId.",
       "type": "object",
       "properties": {
         "category": {
@@ -53,15 +53,15 @@
   "firestore": {
     "/members/{memberId}": {
       "schema": "FamilyMember",
-      "description": "Collection of family members. Only the owner (ownerId) can read or write."
+      "description": "Collection of family members. Only the owner (ownerId) can read or write documents."
     },
     "/expenses/{expenseId}": {
       "schema": "Expense",
-      "description": "Collection of household expenses. Only the owner (ownerId) can read or write."
+      "description": "Collection of household expenses. Access is restricted to users with matching ownerId field."
     },
     "/settings/{userId}": {
       "schema": "FamilySettings",
-      "description": "Family-specific configuration. Only the user with matching UID can access."
+      "description": "Family-specific configuration. Only the user with matching UID can access this document."
     }
   }
 }
