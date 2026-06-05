@@ -11,6 +11,8 @@ import { FamilySettings } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export default function DashboardLayout({
   children,
@@ -35,7 +37,7 @@ export default function DashboardLayout({
     }
   }, [user, authLoading, router]);
 
-  const handleInitializeFamily = async () => {
+  const handleInitializeFamily = () => {
     if (!db || !user) return;
     setIsInitializing(true);
     
@@ -47,13 +49,20 @@ export default function DashboardLayout({
       canExport: true
     };
 
-    try {
-      await setDoc(doc(db, "settings", user.uid), settingsData);
-    } catch (e) {
-      console.error("Failed to initialize family settings:", e);
-    } finally {
-      setIsInitializing(false);
-    }
+    const docRef = doc(db, "settings", user.uid);
+
+    setDoc(docRef, settingsData)
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: "write",
+          requestResourceData: settingsData,
+        });
+        errorEmitter.emit("permission-error", permissionError);
+      })
+      .finally(() => {
+        setIsInitializing(false);
+      });
   };
 
   if (authLoading || (settingsLoading && !settings)) {
@@ -79,7 +88,7 @@ export default function DashboardLayout({
         <div className="max-w-md w-full space-y-8 animate-in fade-in zoom-in duration-500">
           <div className="text-center space-y-2">
             <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mx-auto shadow-xl mb-4">
-               <LayoutDashboard className="w-8 h-8 text-white" />
+               <span className="text-white font-headline text-4xl">K</span>
             </div>
             <h1 className="text-4xl font-headline text-primary">Welcome to KinVest</h1>
             <p className="text-muted-foreground font-medium">Your family ledger is ready for setup.</p>

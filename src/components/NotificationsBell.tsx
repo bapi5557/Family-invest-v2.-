@@ -17,6 +17,8 @@ import { Notification, FamilySettings } from "@/lib/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 export function NotificationsBell() {
   const { user } = useUser();
@@ -61,11 +63,14 @@ export function NotificationsBell() {
   const markAllAsRead = async () => {
     if (!db || !user || !notifications.length) return;
     
-    notifications.forEach(async (n) => {
+    notifications.forEach((n) => {
       if (!n.readBy?.includes(user.uid)) {
         const nRef = doc(db, "notifications", n.id);
         updateDoc(nRef, {
           readBy: arrayUnion(user.uid)
+        }).catch(async () => {
+          const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+          errorEmitter.emit('permission-error', err);
         });
       }
     });
@@ -76,6 +81,9 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       readBy: arrayUnion(user.uid)
+    }).catch(async () => {
+      const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+      errorEmitter.emit('permission-error', err);
     });
   };
 
@@ -85,6 +93,9 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       hiddenBy: arrayUnion(user.uid)
+    }).catch(async () => {
+      const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+      errorEmitter.emit('permission-error', err);
     });
     toast({ title: "Notification Hidden", description: "This will no longer show for you." });
   };
@@ -93,7 +104,10 @@ export function NotificationsBell() {
     e.stopPropagation();
     if (!db || !isAdmin) return;
     const nRef = doc(db, "notifications", id);
-    deleteDoc(nRef);
+    deleteDoc(nRef).catch(async () => {
+      const err = new FirestorePermissionError({ path: nRef.path, operation: 'delete' });
+      errorEmitter.emit('permission-error', err);
+    });
     toast({ variant: "destructive", title: "Activity Deleted", description: "Removed for the entire family." });
   };
 

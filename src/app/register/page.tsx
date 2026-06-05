@@ -50,18 +50,26 @@ export default function RegisterPage() {
       if (user) {
         await updateProfile(user, { displayName: familyName });
 
-        // INITIALIZE PERMANENT FAMILY CLOUD SETTINGS
         const settingsData = {
           adminPin: "1234",
           updatedAt: Date.now(),
           familyName: familyName.trim(),
           ownerId: user.uid,
+          canExport: true,
         };
 
         const docRef = doc(db, "settings", user.uid);
         
-        // Await the initial setup to ensure DashboardLayout sees the data immediately
-        await setDoc(docRef, settingsData);
+        // Initial setup for the dashboard
+        setDoc(docRef, settingsData)
+          .catch(async () => {
+             const permissionError = new FirestorePermissionError({
+               path: docRef.path,
+               operation: "write",
+               requestResourceData: settingsData,
+             });
+             errorEmitter.emit("permission-error", permissionError);
+          });
 
         toast({
           title: "Family Account Created!",
@@ -74,15 +82,8 @@ export default function RegisterPage() {
       if (error.code === 'auth/email-already-in-use') {
         setError("This family email is already registered. Please try logging in instead.");
       } else {
-        console.error("Registration error:", error);
-        setError(error.message || "Registration failed. Please check your connection and try again.");
+        setError(error.message || "Registration failed. Please check your connection.");
       }
-      
-      toast({
-        variant: "destructive",
-        title: "Account Setup Failed",
-        description: error.code === 'auth/email-already-in-use' ? "Email already exists." : "Could not create account.",
-      });
     } finally {
       setLoading(false);
     }
