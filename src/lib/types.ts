@@ -115,6 +115,16 @@ export interface Invite {
   revoked: boolean;
 }
 
+export interface Notification {
+  id: string;
+  message: string;
+  details: string;
+  type: 'expense' | 'member' | 'reminder' | 'system';
+  timestamp: number;
+  ownerId: string;
+  readBy: string[];
+}
+
 export const DEFAULT_EXPENSE_CATEGORIES: { label: ExpenseCategory; icon: LucideIcon }[] = [
   { label: "House Rent", icon: Home },
   { label: "Electricity Bill", icon: Zap },

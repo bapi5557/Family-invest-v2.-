@@ -4,13 +4,13 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown, User } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc, addDoc, limit } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, FamilyMember, FamilySettings, Reminder, Invite, getCategoryIcon } from "@/lib/types";
+import { Expense, FamilyMember, FamilySettings, Reminder, Invite, Notification, getCategoryIcon } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, isPast } from "date-fns";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -23,10 +23,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
@@ -75,24 +75,24 @@ export default function DashboardPage() {
     );
   }, [db, effectiveOwnerId]);
 
-  const activeInvitesQuery = useMemoFirebase(() => {
-    if (!db || !user?.uid) return null;
+  const notificationsQuery = useMemoFirebase(() => {
+    if (!db || !effectiveOwnerId) return null;
     return query(
-      collection(db, "invites"), 
-      where("ownerId", "==", user.uid), 
-      where("revoked", "==", false)
+      collection(db, "notifications"),
+      where("ownerId", "==", effectiveOwnerId),
+      limit(5)
     );
-  }, [db, user]);
+  }, [db, effectiveOwnerId]);
 
   const { data: allExpenses, loading: loadingExp } = useCollection<Expense>(allExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
   const { data: upcomingReminders, loading: loadingReminders } = useCollection<Reminder>(upcomingRemindersQuery);
-  const { data: invites } = useCollection<Invite>(activeInvitesQuery);
+  const { data: rawNotifications, loading: loadingNotifications } = useCollection<Notification>(notificationsQuery);
 
-  const activeInvites = useMemo(() => {
-    if (!invites) return [];
-    return invites.filter(i => i.expiresAt > Date.now());
-  }, [invites]);
+  const notifications = useMemo(() => {
+    if (!rawNotifications) return [];
+    return [...rawNotifications].sort((a, b) => b.timestamp - a.timestamp);
+  }, [rawNotifications]);
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
 
@@ -111,16 +111,6 @@ export default function DashboardPage() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
   }, [allExpenses, totalSpent]);
-
-  const recentExpenses = useMemo(() => {
-    if (!allExpenses) return [];
-    return [...allExpenses].sort((a, b) => b.date - a.date).slice(0, 5);
-  }, [allExpenses]);
-
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast({ title: "Code Copied", description: "10-digit invite code is ready to share." });
-  };
 
   const handleGenerateCode = () => {
     if (!db || !user) return;
@@ -157,33 +147,6 @@ export default function DashboardPage() {
             Family Database: {settings.familyName || 'Shared Ledger'} Synchronized
           </AlertDescription>
         </Alert>
-      )}
-
-      {/* ADMIN INVITE SECTION */}
-      {!settings?.familyOwnerId && settings?.ownerId === user?.uid && (
-        <div className="space-y-4">
-          <Card className="bg-accent/5 border border-accent/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
-                <UserPlus className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="font-bold text-accent text-lg">Family Invitation System</p>
-                <p className="text-sm text-muted-foreground">Admins can generate secure 10-digit codes for instant joining.</p>
-              </div>
-            </div>
-            {activeInvites.length === 0 ? (
-              <Button onClick={handleGenerateCode} disabled={isGenerating} className="rounded-xl h-12 px-8 bg-accent hover:bg-accent/90 shadow-lg">
-                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Sparkles className="w-5 h-5 mr-2" />}
-                Generate Invite Code
-              </Button>
-            ) : (
-              <Button size="sm" variant="outline" className="rounded-xl h-10 px-6 border-accent text-accent" asChild>
-                <Link href="/dashboard/settings">Manage All Invites</Link>
-              </Button>
-            )}
-          </Card>
-        </div>
       )}
 
       <section className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -241,25 +204,34 @@ export default function DashboardPage() {
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50/50 p-6">
             <div>
-              <CardTitle className="font-headline text-2xl">Ledger Activity</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">Recent Outflows</CardDescription>
+              <CardTitle className="font-headline text-2xl">Family Activity</CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">Recent Notifications</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/expenses">All <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
+            <Button variant="ghost" size="sm" className="h-10 rounded-xl" asChild><Link href="/dashboard/expenses">More <ChevronRight className="w-4 h-4 ml-1" /></Link></Button>
           </CardHeader>
           <CardContent className="p-4 space-y-2">
-            {loadingExp ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
-              recentExpenses?.map((expense) => {
-                const Icon = getCategoryIcon(expense.category);
-                return (
-                  <Link key={expense.id} href={`/dashboard/expenses/${expense.id}`} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-primary/5 rounded-2xl group-hover:bg-primary/10 transition-colors"><Icon className="w-5 h-5 text-primary" /></div>
-                      <div><p className="font-bold text-slate-800">{expense.category}</p><p className="text-[10px] text-muted-foreground uppercase font-medium">{format(expense.date, "PP")}</p></div>
+            {loadingNotifications ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
+              notifications.length === 0 ? <div className="p-10 text-center text-slate-400 font-medium">No recent family activity recorded.</div> :
+              notifications.map((n) => (
+                <div key={n.id} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "p-3 rounded-2xl transition-colors",
+                      n.type === 'expense' ? "bg-red-50 text-red-500" : 
+                      n.type === 'member' ? "bg-blue-50 text-blue-500" : 
+                      "bg-amber-50 text-amber-500"
+                    )}>
+                      {n.type === 'expense' ? <CreditCard className="w-5 h-5" /> : 
+                       n.type === 'member' ? <User className="w-5 h-5" /> : 
+                       <Bell className="w-5 h-5" />}
                     </div>
-                    <div className="flex items-center gap-3"><p className="font-bold text-primary text-lg">-{formatCurrencyVal(expense.amount)}</p><ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary transition-colors" /></div>
-                  </Link>
-                );
-              })
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-medium">{format(n.timestamp, "PP p")}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
             }
           </CardContent>
         </Card>

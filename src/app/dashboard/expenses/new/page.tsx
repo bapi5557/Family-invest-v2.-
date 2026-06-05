@@ -17,12 +17,13 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc, query, where } from "firebase/firestore";
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
-import { DEFAULT_EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember } from "@/lib/types";
+import { collection, addDoc, query, where, doc } from "firebase/firestore";
+import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase";
+import { DEFAULT_EXPENSE_CATEGORIES, ExpenseCategory, FamilyMember, FamilySettings } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { createNotification } from "@/lib/notifications-service";
 
 export default function NewExpensePage() {
   const [category, setCategory] = useState<ExpenseCategory>("Other");
@@ -38,16 +39,24 @@ export default function NewExpensePage() {
   const { user } = useUser();
   const { toast } = useToast();
 
-  const membersQuery = useMemoFirebase(() => {
+  const settingsRef = useMemoFirebase(() => {
     if (!db || !user) return null;
-    return query(collection(db, "members"), where("ownerId", "==", user.uid));
+    return doc(db, "settings", user.uid);
   }, [db, user]);
+  
+  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+
+  const membersQuery = useMemoFirebase(() => {
+    if (!db || !effectiveOwnerId) return null;
+    return query(collection(db, "members"), where("ownerId", "==", effectiveOwnerId));
+  }, [db, effectiveOwnerId]);
 
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !user) return;
+    if (!db || !user || !effectiveOwnerId) return;
 
     setIsSubmitting(true);
 
@@ -64,11 +73,22 @@ export default function NewExpensePage() {
       description: description.trim(),
       memberId: memberId === "unassigned" ? null : memberId,
       date: Date.now(),
-      ownerId: user.uid,
+      ownerId: effectiveOwnerId,
       createdAt: Date.now(),
     };
 
     addDoc(collection(db, "expenses"), expenseData)
+      .then(() => {
+        const memberName = members?.find(m => m.id === memberId)?.name || user.displayName || "Someone";
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        createNotification(
+          db, 
+          effectiveOwnerId, 
+          `${memberName} added ₹${parseFloat(amount).toLocaleString('en-IN')} for ${finalCategory} at ${timeStr}`,
+          'expense',
+          description.trim()
+        );
+      })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: "expenses",

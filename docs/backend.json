@@ -104,6 +104,20 @@
         "updatedAt": { "type": "number", "description": "Last updated timestamp." }
       },
       "required": ["adminPin", "ownerId"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A family activity notification.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "details": { "type": "string" },
+        "type": { "type": "string", "enum": ["expense", "member", "reminder", "system"] },
+        "timestamp": { "type": "number" },
+        "ownerId": { "type": "string" },
+        "readBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["message", "type", "timestamp", "ownerId"]
     }
   },
   "auth": {
@@ -133,6 +147,10 @@
     "/invites/{inviteId}": {
       "schema": "Invite",
       "description": "Family invites. Read access is allowed by code for authenticated users to facilitate joining."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Family activity notifications."
     }
   }
 }

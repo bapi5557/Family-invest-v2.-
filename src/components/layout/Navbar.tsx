@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { signOut } from "firebase/auth";
 import { useAuth, useUser, useConnectionStatus } from "@/firebase";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -64,7 +65,9 @@ export function Navbar() {
             )}
           </div>
           
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4">
+            <NotificationsBell />
+            <div className="h-6 w-px bg-slate-200 mx-2" />
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -90,7 +93,7 @@ export function Navbar() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-col items-center justify-center gap-1 min-w-[64px]",
+              "flex flex-col items-center justify-center gap-1 min-w-[56px]",
               pathname === item.href ? "text-primary font-semibold" : "text-muted-foreground"
             )}
           >
@@ -98,13 +101,10 @@ export function Navbar() {
             <span className="text-[10px] uppercase tracking-wider">{item.label}</span>
           </Link>
         ))}
-        <button
-          onClick={handleLogout}
-          className="flex flex-col items-center justify-center gap-1 min-w-[64px] text-muted-foreground"
-        >
-          <LogOut className="w-5 h-5" />
-          <span className="text-[10px] uppercase tracking-wider">Logout</span>
-        </button>
+        <div className="flex flex-col items-center justify-center gap-1 min-w-[56px]">
+          <NotificationsBell />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Alerts</span>
+        </div>
       </nav>
 
       {!isOnline && (

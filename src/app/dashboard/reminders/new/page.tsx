@@ -18,12 +18,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Save, Loader2, Bell } from "lucide-react";
 import Link from "next/link";
-import { collection, addDoc } from "firebase/firestore";
-import { useFirestore, useUser } from "@/firebase";
-import { REMINDER_CATEGORIES, ReminderCategory, Priority, RecurringType } from "@/lib/types";
+import { collection, addDoc, doc } from "firebase/firestore";
+import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
+import { REMINDER_CATEGORIES, ReminderCategory, Priority, RecurringType, FamilySettings } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { createNotification } from "@/lib/notifications-service";
 
 export default function NewReminderPage() {
   const [title, setTitle] = useState("");
@@ -42,9 +43,17 @@ export default function NewReminderPage() {
   const { user } = useUser();
   const { toast } = useToast();
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+  
+  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !user) return;
+    if (!db || !user || !effectiveOwnerId) return;
 
     setIsSubmitting(true);
 
@@ -59,12 +68,21 @@ export default function NewReminderPage() {
       recurringType: isRecurring ? recurringType : "None",
       isGlobal,
       completed: false,
-      ownerId: user.uid,
+      ownerId: effectiveOwnerId,
       createdBy: user.uid,
       createdAt: Date.now(),
     };
 
     addDoc(collection(db, "reminders"), reminderData)
+      .then(() => {
+        const timeAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        createNotification(
+          db, 
+          effectiveOwnerId, 
+          `${user.displayName || 'Admin'} created a new reminder: "${title}" at ${timeAt}`,
+          'reminder'
+        );
+      })
       .catch(async () => {
         const err = new FirestorePermissionError({ path: "reminders", operation: 'create', requestResourceData: reminderData });
         errorEmitter.emit('permission-error', err);
