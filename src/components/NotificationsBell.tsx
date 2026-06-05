@@ -36,15 +36,13 @@ export function NotificationsBell() {
   const isAdmin = user?.uid === effectiveOwnerId;
 
   const notificationsQuery = useMemoFirebase(() => {
-    // Crucial: Wait for settings to load so we query with the correct familyOwnerId
     if (!db || !effectiveOwnerId || loadingSettings) return null;
-    
-    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    // We simplified this query to avoid needing a composite index on ownerId + timestamp.
+    // Instead, we fetch the latest 50 and filter/sort client-side.
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
-      where("timestamp", ">", ninetyDaysAgo),
-      limit(20)
+      limit(50)
     );
   }, [db, effectiveOwnerId, loadingSettings]);
 
@@ -52,9 +50,11 @@ export function NotificationsBell() {
 
   const notifications = useMemo(() => {
     if (!rawNotifications || !user) return [];
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return [...rawNotifications]
-      .filter(n => !n.hiddenBy?.includes(user.uid))
-      .sort((a, b) => b.timestamp - a.timestamp);
+      .filter(n => !n.hiddenBy?.includes(user.uid) && n.timestamp > ninetyDaysAgo)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 20);
   }, [rawNotifications, user]);
 
   const unreadCount = useMemo(() => {

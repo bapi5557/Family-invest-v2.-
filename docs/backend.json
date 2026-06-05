@@ -153,7 +153,7 @@
     },
     "/notifications/{notificationId}": {
       "schema": "Notification",
-      "description": "Family activity notifications. Shared READ/LIST access allowed for authenticated family members where notification.ownerId matches user settings.familyOwnerId or their own UID. Admins can delete."
+      "description": "Family activity notifications. Shared READ/LIST and UPDATE access allowed for authenticated family members where notification.ownerId matches their settings.familyOwnerId or their own UID. This allows all family members to mark as read or hide. Only Admins (original owner) can delete."
     }
   }
 }

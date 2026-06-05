@@ -75,12 +75,12 @@ export default function DashboardPage() {
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId || loadingSettings) return null;
-    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    // Simplified query to avoid composite index requirement. 
+    // We fetch a larger batch and filter client-side.
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
-      where("timestamp", ">", ninetyDaysAgo),
-      limit(5)
+      limit(50)
     );
   }, [db, effectiveOwnerId, loadingSettings]);
 
@@ -91,9 +91,11 @@ export default function DashboardPage() {
 
   const notifications = useMemo(() => {
     if (!rawNotifications || !user) return [];
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return [...rawNotifications]
-      .filter(n => !n.hiddenBy?.includes(user.uid))
-      .sort((a, b) => b.timestamp - a.timestamp);
+      .filter(n => !n.hiddenBy?.includes(user.uid) && n.timestamp > ninetyDaysAgo)
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 5);
   }, [rawNotifications, user]);
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
