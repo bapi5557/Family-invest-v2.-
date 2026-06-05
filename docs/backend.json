@@ -93,7 +93,7 @@
     },
     "FamilySettings": {
       "title": "Family Settings",
-      "description": "Global settings for a family account. Document ID matches the user UID.",
+      "description": "Global settings for a family account. Document ID matches the user UID. This document establishes family membership.",
       "type": "object",
       "properties": {
         "adminPin": { "type": "string", "description": "4-digit PIN for sensitive family actions." },
@@ -107,7 +107,7 @@
     },
     "Notification": {
       "title": "Notification",
-      "description": "A family activity notification.",
+      "description": "A family activity notification. Shared among family members who share the same ownerId. Members can hide notifications locally via the hiddenBy field.",
       "type": "object",
       "properties": {
         "message": { "type": "string" },
@@ -115,7 +115,10 @@
         "type": { "type": "string", "enum": ["expense", "member", "reminder", "system"] },
         "timestamp": { "type": "number" },
         "ownerId": { "type": "string" },
-        "readBy": { "type": "array", "items": { "type": "string" } }
+        "readBy": { "type": "array", "items": { "type": "string" } },
+        "hiddenBy": { "type": "array", "items": { "type": "string" } },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" }
       },
       "required": ["message", "type", "timestamp", "ownerId"]
     }
@@ -150,7 +153,7 @@
     },
     "/notifications/{notificationId}": {
       "schema": "Notification",
-      "description": "Family activity notifications."
+      "description": "Family activity notifications. Shared access for read/write among family based on ownerId."
     }
   }
 }
