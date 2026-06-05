@@ -36,8 +36,9 @@ export function NotificationsBell() {
   const isAdmin = user?.uid === effectiveOwnerId;
 
   const notificationsQuery = useMemoFirebase(() => {
-    // Only query if settings are loaded to avoid incorrect 'ownerId' on first render
+    // Crucial: Wait for settings to load so we query with the correct familyOwnerId
     if (!db || !effectiveOwnerId || loadingSettings) return null;
+    
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return query(
       collection(db, "notifications"),
@@ -70,7 +71,11 @@ export function NotificationsBell() {
         updateDoc(nRef, {
           readBy: arrayUnion(user.uid)
         }).catch(async () => {
-          const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+          const err = new FirestorePermissionError({ 
+            path: nRef.path, 
+            operation: 'update',
+            requestResourceData: { readBy: [user.uid] }
+          });
           errorEmitter.emit('permission-error', err);
         });
       }
@@ -83,7 +88,11 @@ export function NotificationsBell() {
     updateDoc(nRef, {
       readBy: arrayUnion(user.uid)
     }).catch(async () => {
-      const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+      const err = new FirestorePermissionError({ 
+        path: nRef.path, 
+        operation: 'update',
+        requestResourceData: { readBy: [user.uid] }
+      });
       errorEmitter.emit('permission-error', err);
     });
   };
@@ -95,7 +104,11 @@ export function NotificationsBell() {
     updateDoc(nRef, {
       hiddenBy: arrayUnion(user.uid)
     }).catch(async () => {
-      const err = new FirestorePermissionError({ path: nRef.path, operation: 'update' });
+      const err = new FirestorePermissionError({ 
+        path: nRef.path, 
+        operation: 'update',
+        requestResourceData: { hiddenBy: [user.uid] }
+      });
       errorEmitter.emit('permission-error', err);
     });
     toast({ title: "Notification Hidden", description: "This will no longer show for you." });
@@ -139,7 +152,7 @@ export function NotificationsBell() {
           {unreadCount > 0 && <span className="text-[10px] uppercase font-bold tracking-widest bg-white/20 px-2 py-0.5 rounded-full">{unreadCount} New</span>}
         </div>
         <div className="max-h-[400px] overflow-y-auto">
-          {loading ? (
+          {loading || loadingSettings ? (
             <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/20" /></div>
           ) : notifications.length === 0 ? (
             <div className="p-10 text-center space-y-2">
