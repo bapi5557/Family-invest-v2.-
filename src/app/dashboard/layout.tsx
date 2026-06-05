@@ -3,14 +3,13 @@
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Suspense, useEffect, useState } from "react";
-import { Loader2, Fingerprint, ShieldAlert, Database, UserPlus, Sparkles, LayoutDashboard, ArrowRight } from "lucide-react";
+import { Loader2, ShieldAlert, UserPlus, Sparkles, LayoutDashboard, ArrowRight } from "lucide-react";
 import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useRouter } from "next/navigation";
 import { doc, setDoc } from "firebase/firestore";
 import { FamilySettings } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import Link from "next/link";
 
 export default function DashboardLayout({
@@ -36,7 +35,6 @@ export default function DashboardLayout({
     }
   }, [user, authLoading, router]);
 
-  // Self-Healing Action: Initialize a default family profile for this user
   const handleInitializeFamily = async () => {
     if (!db || !user) return;
     setIsInitializing(true);
@@ -51,7 +49,6 @@ export default function DashboardLayout({
 
     try {
       await setDoc(doc(db, "settings", user.uid), settingsData);
-      // settings hook will automatically update and clear the setup screen
     } catch (e) {
       console.error("Failed to initialize family settings:", e);
     } finally {
@@ -59,7 +56,6 @@ export default function DashboardLayout({
     }
   };
 
-  // Handle loading states
   if (authLoading || (settingsLoading && !settings)) {
     return (
       <div className="flex items-center justify-center h-screen bg-background p-6">
@@ -77,7 +73,6 @@ export default function DashboardLayout({
     );
   }
 
-  // Setup Screen: If logged in but no family connection exists
   if (user && !settings && !settingsLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
@@ -131,12 +126,6 @@ export default function DashboardLayout({
                   </Button>
                 </div>
               </div>
-
-              {/* Debug Panel for context */}
-              <div className="bg-slate-900 text-white/40 p-4 rounded-xl text-[9px] font-mono">
-                <p>DIAGNOSTIC ID: {user.uid}</p>
-                <p>STATUS: UNCONNECTED_USER</p>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -144,7 +133,6 @@ export default function DashboardLayout({
     );
   }
 
-  // If settings error occurred
   if (settingsError) {
     return (
       <div className="flex items-center justify-center h-screen bg-background p-6">
@@ -154,10 +142,6 @@ export default function DashboardLayout({
           </div>
           <h2 className="text-2xl font-headline">Connection Error</h2>
           <p className="text-sm text-muted-foreground font-medium">We couldn't verify your family membership status.</p>
-          <div className="p-4 bg-red-50 rounded-xl text-left">
-            <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-1">Error Details</p>
-            <p className="text-xs font-mono text-red-700">{settingsError.message}</p>
-          </div>
           <button 
             onClick={() => window.location.reload()}
             className="w-full h-12 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"

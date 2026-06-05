@@ -4,11 +4,11 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown, User, X, Trash2 } from "lucide-react";
+import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, Trash2, PieChart, User } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, doc, addDoc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
+import { collection, query, where, doc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, FamilyMember, FamilySettings, Reminder, Invite, Notification, getCategoryIcon } from "@/lib/types";
+import { Expense, FamilyMember, FamilySettings, Reminder, Notification } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -23,8 +23,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 

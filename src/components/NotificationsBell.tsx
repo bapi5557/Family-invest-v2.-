@@ -2,11 +2,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bell, Check, Clock, Loader2, Sparkles, User, CreditCard, Calendar, X, Trash2 } from "lucide-react";
+import { Bell, Clock, Loader2, Sparkles, User, CreditCard, Calendar, X, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
