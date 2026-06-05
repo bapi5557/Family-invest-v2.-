@@ -8,7 +8,9 @@ export function createNotification(
   ownerId: string,
   message: string,
   type: NotificationType,
-  details: string = ""
+  details: string = "",
+  createdBy: string = "",
+  createdByName: string = ""
 ) {
   if (!db || !ownerId) return;
 
@@ -19,6 +21,9 @@ export function createNotification(
     timestamp: Date.now(),
     ownerId,
     readBy: [],
+    hiddenBy: [],
+    createdBy,
+    createdByName,
   };
 
   addDoc(collection(db, 'notifications'), notificationData)

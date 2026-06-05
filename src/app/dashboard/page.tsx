@@ -4,9 +4,9 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown, User } from "lucide-react";
+import { Plus, Users, Wallet, CreditCard, ChevronRight, LogOut, ShieldCheck, Share2, Loader2, Bell, CalendarClock, UserPlus, Copy, Sparkles, PieChart, TrendingDown, User, X, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { collection, query, where, doc, addDoc, limit } from "firebase/firestore";
+import { collection, query, where, doc, addDoc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { Expense, FamilyMember, FamilySettings, Reminder, Invite, Notification, getCategoryIcon } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +35,6 @@ export default function DashboardPage() {
   const db = useFirestore();
   const { toast } = useToast();
   const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     window.history.pushState({ dashboard: true }, "");
@@ -54,6 +53,7 @@ export default function DashboardPage() {
   
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+  const isAdmin = user?.uid === effectiveOwnerId;
 
   const allExpensesQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
@@ -77,9 +77,11 @@ export default function DashboardPage() {
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
+    const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
+      where("timestamp", ">", ninetyDaysAgo),
       limit(5)
     );
   }, [db, effectiveOwnerId]);
@@ -90,9 +92,11 @@ export default function DashboardPage() {
   const { data: rawNotifications, loading: loadingNotifications } = useCollection<Notification>(notificationsQuery);
 
   const notifications = useMemo(() => {
-    if (!rawNotifications) return [];
-    return [...rawNotifications].sort((a, b) => b.timestamp - a.timestamp);
-  }, [rawNotifications]);
+    if (!rawNotifications || !user) return [];
+    return [...rawNotifications]
+      .filter(n => !n.hiddenBy?.includes(user.uid))
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [rawNotifications, user]);
 
   const totalSpent = useMemo(() => allExpenses?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0, [allExpenses]);
 
@@ -112,28 +116,20 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [allExpenses, totalSpent]);
 
-  const handleGenerateCode = () => {
+  const hideNotification = (id: string) => {
     if (!db || !user) return;
-    setIsGenerating(true);
-    const code = Math.floor(1000000000 + Math.random() * 9000000000).toString();
-    const inviteData = {
-      code,
-      ownerId: user.uid,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      revoked: false,
-    };
-    
-    addDoc(collection(db, "invites"), inviteData)
-      .then(() => {
-        toast({ title: "Invite Code Ready", description: `Your 10-digit code is: ${code}` });
-      })
-      .catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'invites', operation: 'create', requestResourceData: inviteData }));
-      })
-      .finally(() => {
-        setIsGenerating(false);
-      });
+    const nRef = doc(db, "notifications", id);
+    updateDoc(nRef, {
+      hiddenBy: arrayUnion(user.uid)
+    });
+    toast({ title: "Dismissed", description: "Activity hidden from your view." });
+  };
+
+  const deleteNotification = (id: string) => {
+    if (!db || !isAdmin) return;
+    const nRef = doc(db, "notifications", id);
+    deleteDoc(nRef);
+    toast({ variant: "destructive", title: "Deleted", description: "Removed for the entire family." });
   };
 
   const handleExitApp = () => { window.location.href = "about:blank"; };
@@ -213,7 +209,7 @@ export default function DashboardPage() {
             {loadingNotifications ? <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/30" /></div> : 
               notifications.length === 0 ? <div className="p-10 text-center text-slate-400 font-medium">No recent family activity recorded.</div> :
               notifications.map((n) => (
-                <div key={n.id} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group">
+                <div key={n.id} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group relative">
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       "p-3 rounded-2xl transition-colors",
@@ -227,8 +223,24 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-bold text-slate-800 text-sm">{n.message}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase font-medium">{format(n.timestamp, "PP p")}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                          {n.createdByName ? `by ${n.createdByName}` : "System"}
+                        </span>
+                        <span className="text-slate-200 text-[10px]">•</span>
+                        <p className="text-[10px] text-muted-foreground uppercase font-medium">{format(n.timestamp, "MMM d, p")}</p>
+                      </div>
                     </div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => hideNotification(n.id)}>
+                      <X className="w-4 h-4 text-slate-400" />
+                    </Button>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => deleteNotification(n.id)}>
+                        <Trash2 className="w-4 h-4 text-red-300" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))

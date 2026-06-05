@@ -86,7 +86,9 @@ export default function NewExpensePage() {
           effectiveOwnerId, 
           `${memberName} added ₹${parseFloat(amount).toLocaleString('en-IN')} for ${finalCategory} at ${timeStr}`,
           'expense',
-          description.trim()
+          description.trim(),
+          user.uid,
+          user.displayName || "Family Member"
         );
       })
       .catch(async (serverError) => {

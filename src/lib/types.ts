@@ -123,6 +123,9 @@ export interface Notification {
   timestamp: number;
   ownerId: string;
   readBy: string[];
+  hiddenBy: string[];
+  createdBy: string;
+  createdByName: string;
 }
 
 export const DEFAULT_EXPENSE_CATEGORIES: { label: ExpenseCategory; icon: LucideIcon }[] = [

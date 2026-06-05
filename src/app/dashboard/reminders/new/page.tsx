@@ -80,7 +80,10 @@ export default function NewReminderPage() {
           db, 
           effectiveOwnerId, 
           `${user.displayName || 'Admin'} created a new reminder: "${title}" at ${timeAt}`,
-          'reminder'
+          'reminder',
+          "",
+          user.uid,
+          user.displayName || "Family Admin"
         );
       })
       .catch(async () => {

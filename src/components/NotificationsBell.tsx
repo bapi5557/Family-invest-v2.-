@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
-import { Bell, Check, Clock, Loader2, Sparkles, User, CreditCard, Calendar } from "lucide-react";
+import { Bell, Check, Clock, Loader2, Sparkles, User, CreditCard, Calendar, X, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,14 +13,16 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase";
-import { collection, query, where, limit, doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, query, where, limit, doc, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { Notification, FamilySettings } from "@/lib/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export function NotificationsBell() {
-  const { user } = userUser();
+  const { user } = useUser();
   const db = useFirestore();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
 
   const settingsRef = useMemoFirebase(() => {
@@ -29,8 +32,8 @@ export function NotificationsBell() {
   
   const { data: settings } = useDoc<FamilySettings>(settingsRef);
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+  const isAdmin = user?.uid === effectiveOwnerId;
 
-  // Fetch notifications from the last 90 days
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId) return null;
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
@@ -45,9 +48,11 @@ export function NotificationsBell() {
   const { data: rawNotifications, loading } = useCollection<Notification>(notificationsQuery);
 
   const notifications = useMemo(() => {
-    if (!rawNotifications) return [];
-    return [...rawNotifications].sort((a, b) => b.timestamp - a.timestamp);
-  }, [rawNotifications]);
+    if (!rawNotifications || !user) return [];
+    return [...rawNotifications]
+      .filter(n => !n.hiddenBy?.includes(user.uid))
+      .sort((a, b) => b.timestamp - a.timestamp);
+  }, [rawNotifications, user]);
 
   const unreadCount = useMemo(() => {
     if (!notifications || !user) return 0;
@@ -73,6 +78,24 @@ export function NotificationsBell() {
     updateDoc(nRef, {
       readBy: arrayUnion(user.uid)
     });
+  };
+
+  const hideNotification = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!db || !user) return;
+    const nRef = doc(db, "notifications", id);
+    updateDoc(nRef, {
+      hiddenBy: arrayUnion(user.uid)
+    });
+    toast({ title: "Notification Hidden", description: "This will no longer show for you." });
+  };
+
+  const deleteNotification = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!db || !isAdmin) return;
+    const nRef = doc(db, "notifications", id);
+    deleteDoc(nRef);
+    toast({ variant: "destructive", title: "Activity Deleted", description: "Removed for the entire family." });
   };
 
   const getTypeIcon = (type: string) => {
@@ -101,7 +124,7 @@ export function NotificationsBell() {
           <h3 className="font-headline text-lg">Family Activity</h3>
           {unreadCount > 0 && <span className="text-[10px] uppercase font-bold tracking-widest bg-white/20 px-2 py-0.5 rounded-full">{unreadCount} New</span>}
         </div>
-        <div className="max-h-[400px] overflow-y-auto scrollbar-hide">
+        <div className="max-h-[400px] overflow-y-auto">
           {loading ? (
             <div className="p-10 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-primary/20" /></div>
           ) : notifications.length === 0 ? (
@@ -111,15 +134,15 @@ export function NotificationsBell() {
             </div>
           ) : (
             notifications.map((n) => (
-              <DropdownMenuItem 
+              <div 
                 key={n.id} 
                 className={cn(
-                  "p-4 flex flex-col items-start gap-1 cursor-pointer transition-colors border-b border-slate-50 last:border-0",
+                  "p-4 flex flex-col items-start gap-1 cursor-pointer transition-colors border-b border-slate-50 last:border-0 relative group",
                   !n.readBy?.includes(user?.uid || "") ? "bg-primary/5" : "bg-white"
                 )}
                 onClick={() => markAsRead(n.id)}
               >
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 pr-12">
                    <div className={cn(
                      "p-1.5 rounded-lg",
                      n.type === 'expense' ? "bg-red-50 text-red-500" : 
@@ -128,14 +151,43 @@ export function NotificationsBell() {
                    )}>
                      {getTypeIcon(n.type)}
                    </div>
-                   <p className="text-xs font-bold text-slate-800 line-clamp-1">{n.message}</p>
+                   <p className="text-xs font-bold text-slate-800 leading-tight">{n.message}</p>
                 </div>
-                {n.details && <p className="text-[10px] text-slate-500 font-medium ml-8">{n.details}</p>}
-                <div className="flex items-center gap-1.5 text-[9px] text-slate-300 mt-1 ml-8">
-                  <Clock className="w-2.5 h-2.5" />
-                  {format(n.timestamp, "MMM d, h:mm a")}
+                
+                <div className="flex items-center gap-2 mt-1 ml-8 text-[9px]">
+                  <span className="text-slate-400 font-bold uppercase tracking-tighter">
+                    {n.createdByName ? `by ${n.createdByName}` : "System"}
+                  </span>
+                  <span className="text-slate-200">•</span>
+                  <div className="flex items-center gap-1 text-slate-300">
+                    <Clock className="w-2.5 h-2.5" />
+                    {format(n.timestamp, "MMM d, h:mm a")}
+                  </div>
                 </div>
-              </DropdownMenuItem>
+
+                <div className="absolute right-2 top-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 rounded-md hover:bg-slate-100 text-slate-400"
+                    onClick={(e) => hideNotification(e, n.id)}
+                    title="Hide for me"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                  {isAdmin && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 rounded-md hover:bg-red-50 text-red-300 hover:text-red-500"
+                      onClick={(e) => deleteNotification(e, n.id)}
+                      title="Delete for everyone"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -146,10 +198,4 @@ export function NotificationsBell() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-// Utility function fix for the typo in the hook call
-function userUser() {
-  const { useUser } = require('@/firebase');
-  return useUser();
 }
