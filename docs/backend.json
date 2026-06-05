@@ -87,7 +87,7 @@
         "completed": { "type": "boolean" },
         "ownerId": { "type": "string" },
         "createdBy": { "type": "string" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "number": "number" }
       },
       "required": ["title", "date", "category", "priority", "ownerId"]
     },
@@ -107,7 +107,7 @@
     },
     "Notification": {
       "title": "Notification",
-      "description": "A family activity notification. Shared among family members who share the same ownerId. Members can hide notifications locally via the hiddenBy field.",
+      "description": "A family activity notification. Shared access for read/write among family based on ownerId.",
       "type": "object",
       "properties": {
         "message": { "type": "string" },
@@ -153,7 +153,7 @@
     },
     "/notifications/{notificationId}": {
       "schema": "Notification",
-      "description": "Family activity notifications. Shared access for read/write among family based on ownerId. (Security Rules: Enabled list for family members)"
+      "description": "Family activity notifications. Shared access allowed for family members where notification ownerId matches user settings familyOwnerId or their own UID. (Rules: enable list for these family members)"
     }
   }
 }

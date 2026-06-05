@@ -31,12 +31,13 @@ export function NotificationsBell() {
     return doc(db, "settings", user.uid);
   }, [db, user]);
   
-  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const { data: settings, loading: loadingSettings } = useDoc<FamilySettings>(settingsRef);
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
   const isAdmin = user?.uid === effectiveOwnerId;
 
   const notificationsQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
+    // Only query if settings are loaded to avoid incorrect 'ownerId' on first render
+    if (!db || !effectiveOwnerId || loadingSettings) return null;
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return query(
       collection(db, "notifications"),
@@ -44,7 +45,7 @@ export function NotificationsBell() {
       where("timestamp", ">", ninetyDaysAgo),
       limit(20)
     );
-  }, [db, effectiveOwnerId]);
+  }, [db, effectiveOwnerId, loadingSettings]);
 
   const { data: rawNotifications, loading } = useCollection<Notification>(notificationsQuery);
 

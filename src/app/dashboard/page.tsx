@@ -49,32 +49,32 @@ export default function DashboardPage() {
     return doc(db, "settings", user.uid);
   }, [db, user]);
   
-  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const { data: settings, loading: loadingSettings } = useDoc<FamilySettings>(settingsRef);
   const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
   const isAdmin = user?.uid === effectiveOwnerId;
 
   const allExpensesQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
+    if (!db || !effectiveOwnerId || loadingSettings) return null;
     return query(collection(db, "expenses"), where("ownerId", "==", effectiveOwnerId));
-  }, [db, effectiveOwnerId]);
+  }, [db, effectiveOwnerId, loadingSettings]);
 
   const membersQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
+    if (!db || !effectiveOwnerId || loadingSettings) return null;
     return query(collection(db, "members"), where("ownerId", "==", effectiveOwnerId));
-  }, [db, effectiveOwnerId]);
+  }, [db, effectiveOwnerId, loadingSettings]);
 
   const upcomingRemindersQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
+    if (!db || !effectiveOwnerId || loadingSettings) return null;
     return query(
       collection(db, "reminders"), 
       where("ownerId", "==", effectiveOwnerId),
       where("completed", "==", false),
       limit(5)
     );
-  }, [db, effectiveOwnerId]);
+  }, [db, effectiveOwnerId, loadingSettings]);
 
   const notificationsQuery = useMemoFirebase(() => {
-    if (!db || !effectiveOwnerId) return null;
+    if (!db || !effectiveOwnerId || loadingSettings) return null;
     const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
     return query(
       collection(db, "notifications"),
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       where("timestamp", ">", ninetyDaysAgo),
       limit(5)
     );
-  }, [db, effectiveOwnerId]);
+  }, [db, effectiveOwnerId, loadingSettings]);
 
   const { data: allExpenses, loading: loadingExp } = useCollection<Expense>(allExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
