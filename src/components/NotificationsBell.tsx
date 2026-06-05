@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -11,6 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, limit, doc, updateDoc, arrayUnion } from "firebase/firestore";
 import { Notification, FamilySettings } from "@/lib/types";
@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export function NotificationsBell() {
-  const { user } = useUser();
+  const { user } = userUser();
   const db = useFirestore();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -146,4 +146,10 @@ export function NotificationsBell() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+// Utility function fix for the typo in the hook call
+function userUser() {
+  const { useUser } = require('@/firebase');
+  return useUser();
 }
