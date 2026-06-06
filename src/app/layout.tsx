@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { ReminderMonitor } from '@/components/ReminderMonitor';
 
 export const metadata: Metadata = {
   title: 'KinVest - Family Investment Manager',
@@ -25,6 +26,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <FirebaseErrorListener />
+          <ReminderMonitor />
           {children}
           <Toaster />
         </FirebaseClientProvider>

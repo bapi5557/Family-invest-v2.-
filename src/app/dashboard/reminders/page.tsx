@@ -4,12 +4,12 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Bell, Calendar, Clock, Loader2, CheckCircle2, Circle, AlertTriangle, Share2, Filter, Trash2 } from "lucide-react";
+import { Plus, Bell, Calendar, Clock, Loader2, CheckCircle2, Circle, AlertTriangle, Share2, Filter, Trash2, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { Reminder } from "@/lib/types";
-import { format, isPast } from "date-fns";
+import { format, isPast, isToday, isTomorrow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -62,17 +62,28 @@ export default function RemindersPage() {
     toast({ variant: "destructive", title: "Reminder Removed", description: "Obligation cleared from ledger." });
   };
 
+  const getStatusInfo = (reminder: Reminder) => {
+    if (reminder.completed) return { label: "Completed", color: "text-emerald-500", bg: "bg-emerald-50" };
+    
+    const reminderDate = new Date(reminder.date);
+    const [h, m] = (reminder.time || "00:00").split(':').map(Number);
+    reminderDate.setHours(h, m, 0, 0);
+
+    if (isPast(reminderDate)) return { label: "Overdue", color: "text-red-500", bg: "bg-red-50", icon: AlertTriangle };
+    if (isToday(reminderDate)) return { label: "Due Today", color: "text-amber-600", bg: "bg-amber-50", icon: Clock };
+    if (isTomorrow(reminderDate)) return { label: "Tomorrow", color: "text-blue-500", bg: "bg-blue-50" };
+    
+    return { label: "Upcoming", color: "text-slate-500", bg: "bg-slate-50" };
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline text-primary">Family Reminders</h1>
           <p className="text-muted-foreground font-body">Never miss a bill, SIP, or family celebration.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="rounded-xl h-10">
-            <Share2 className="w-4 h-4 mr-2" /> Export
-          </Button>
           <Button size="sm" className="rounded-xl h-10 shadow-md" asChild>
             <Link href="/dashboard/reminders/new">
               <Plus className="w-4 h-4 mr-2" /> New Reminder
@@ -81,14 +92,17 @@ export default function RemindersPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl w-fit">
+      <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
         {(["all", "active", "completed"] as const).map((f) => (
           <Button
             key={f}
             variant={filter === f ? "default" : "ghost"}
             size="sm"
             onClick={() => setFilter(f)}
-            className="rounded-xl capitalize h-8"
+            className={cn(
+              "rounded-xl capitalize h-9 px-6 transition-all",
+              filter === f ? "shadow-md" : "text-muted-foreground"
+            )}
           >
             {f}
           </Button>
@@ -107,40 +121,40 @@ export default function RemindersPage() {
           </Button>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reminders.map((reminder) => {
-            const isOverdue = !reminder.completed && isPast(reminder.date);
+            const status = getStatusInfo(reminder);
             return (
               <Card 
                 key={reminder.id} 
                 className={cn(
-                  "rounded-[2rem] border-none shadow-sm transition-all hover:shadow-md group overflow-hidden bg-white",
-                  reminder.completed && "opacity-60",
-                  isOverdue && "ring-2 ring-red-100"
+                  "rounded-[2.5rem] border-none shadow-sm transition-all hover:shadow-xl group overflow-hidden bg-white flex flex-col",
+                  reminder.completed && "opacity-60 grayscale-[0.5]"
                 )}
               >
                 <div className={cn(
                   "h-2 w-full",
-                  reminder.priority === "High" ? "bg-red-400" : reminder.priority === "Medium" ? "bg-amber-400" : "bg-emerald-400"
+                  reminder.priority === "High" ? "bg-red-500" : reminder.priority === "Medium" ? "bg-amber-400" : "bg-emerald-400"
                 )} />
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                <CardContent className="p-8 space-y-5 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={cn(
-                          "text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-md",
-                          isOverdue ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500"
+                          "text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full",
+                          status.bg, status.color
                         )}>
-                          {reminder.category}
+                          {status.icon && <status.icon className="w-2.5 h-2.5 inline mr-1" />}
+                          {status.label}
                         </span>
                         {reminder.isRecurring && (
-                          <span className="text-[10px] font-black uppercase tracking-tighter bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                          <span className="text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary px-2.5 py-1 rounded-full">
                             {reminder.recurringType}
                           </span>
                         )}
                       </div>
                       <h3 className={cn(
-                        "font-bold text-xl leading-tight group-hover:text-primary transition-colors",
+                        "font-bold text-2xl leading-tight group-hover:text-primary transition-colors",
                         reminder.completed && "line-through text-slate-400"
                       )}>
                         {reminder.title}
@@ -148,35 +162,46 @@ export default function RemindersPage() {
                     </div>
                     <button 
                       onClick={() => toggleComplete(reminder.id, reminder.completed)}
-                      className="text-slate-300 hover:text-primary transition-colors"
+                      className={cn(
+                        "transition-all scale-125",
+                        reminder.completed ? "text-emerald-500" : "text-slate-200 hover:text-primary"
+                      )}
                     >
-                      {reminder.completed ? <CheckCircle2 className="w-6 h-6 text-emerald-500" /> : <Circle className="w-6 h-6" />}
+                      {reminder.completed ? <CheckCircle2 className="w-7 h-7" /> : <Circle className="w-7 h-7" />}
                     </button>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                      <Calendar className={cn("w-4 h-4", isOverdue ? "text-red-500" : "text-primary")} />
-                      <span className={isOverdue ? "text-red-600 font-bold" : ""}>
-                        {format(reminder.date, "PP")}
-                        {isOverdue && " (Overdue)"}
-                      </span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Date</p>
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                        <Calendar className="w-4 h-4 text-primary/40" />
+                        {format(reminder.date, "MMM dd")}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
-                      <Clock className="w-4 h-4" />
-                      {reminder.time || "No specific time"}
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Time</p>
+                      <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                        <Clock className="w-4 h-4 text-primary/40" />
+                        {reminder.time || "Anytime"}
+                      </div>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 line-clamp-2 italic">
-                    {reminder.description || "No specific details recorded."}
+                  <p className="text-xs text-slate-500 line-clamp-2 italic leading-relaxed flex-1">
+                    {reminder.description || "No specific details recorded for this family obligation."}
                   </p>
 
-                  <div className="pt-4 flex items-center justify-between border-t border-slate-50">
-                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                  <div className="pt-5 flex items-center justify-between border-t border-slate-50">
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
                       {reminder.isGlobal ? "Family-Wide" : "Personal"}
                     </span>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-destructive" onClick={() => deleteReminder(reminder.id)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-10 w-10 text-slate-200 hover:text-destructive hover:bg-red-50 rounded-full transition-all" 
+                      onClick={() => deleteReminder(reminder.id)}
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>

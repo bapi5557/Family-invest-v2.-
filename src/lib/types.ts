@@ -49,6 +49,7 @@ export type ReminderCategory =
 
 export type Priority = "Low" | "Medium" | "High";
 export type RecurringType = "None" | "Daily" | "Weekly" | "Monthly" | "Yearly";
+export type SnoozeOption = "10_MIN" | "1_HOUR" | "TOMORROW";
 
 export interface FamilyMember {
   id: string;
@@ -95,6 +96,7 @@ export interface Reminder {
   ownerId: string;
   createdBy: string;
   createdAt: number;
+  triggeredAt?: number;
 }
 
 export interface FamilySettings {
