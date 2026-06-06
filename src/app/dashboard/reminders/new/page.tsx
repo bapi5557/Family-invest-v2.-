@@ -75,15 +75,16 @@ export default function NewReminderPage() {
 
     addDoc(collection(db, "reminders"), reminderData)
       .then(() => {
-        const timeAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const memberName = user.displayName || "Family Member";
         createNotification(
           db, 
           effectiveOwnerId, 
-          `${user.displayName || 'Admin'} created a new reminder: "${title}" at ${timeAt}`,
+          `${memberName} created reminder: ${title}`,
           'reminder',
-          "",
+          description,
           user.uid,
-          user.displayName || "Family Admin"
+          memberName,
+          user.photoURL || ""
         );
       })
       .catch(async () => {

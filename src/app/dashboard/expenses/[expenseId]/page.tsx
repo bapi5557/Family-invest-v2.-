@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -6,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Tag, CreditCard, Loader2, Edit2, Trash2, StickyNote, User } from "lucide-react";
 import Link from "next/link";
 import { doc, deleteDoc } from "firebase/firestore";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { Expense, FamilyMember } from "@/lib/types";
+import { useDoc, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { Expense, FamilyMember, FamilySettings } from "@/lib/types";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { useToast } from "@/hooks/use-toast";
+import { createNotification } from "@/lib/notifications-service";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +29,16 @@ export default function ExpenseDetailPage() {
   const { expenseId } = useParams();
   const router = useRouter();
   const db = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+  
+  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
 
   const expenseRef = useMemoFirebase(() => {
     if (!db || !expenseId) return null;
@@ -44,11 +55,26 @@ export default function ExpenseDetailPage() {
   const { data: member } = useDoc<FamilyMember>(memberRef);
 
   const handleDelete = () => {
-    if (!db || !expenseId) return;
+    if (!db || !expenseId || !user || !effectiveOwnerId || !expense) return;
     
     const docRef = doc(db, "expenses", expenseId as string);
+    const category = expense.category;
+    const amount = expense.amount;
     
     deleteDoc(docRef)
+      .then(() => {
+        const memberName = user.displayName || "Family Member";
+        createNotification(
+          db, 
+          effectiveOwnerId, 
+          `${memberName} deleted a transaction: ₹${amount.toLocaleString('en-IN')} for ${category}`,
+          'expense',
+          "",
+          user.uid,
+          memberName,
+          user.photoURL || ""
+        );
+      })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,

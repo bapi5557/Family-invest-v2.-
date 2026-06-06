@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, Trash2, PieChart, User } from "lucide-react";
+import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, Trash2, PieChart, User, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
@@ -12,6 +12,7 @@ import { Expense, FamilyMember, FamilySettings, Reminder, FamilyNotification } f
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,7 +76,6 @@ export default function DashboardPage() {
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId || loadingSettings) return null;
-    // Client-side filtering for timestamp to avoid composite index requirements
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
@@ -210,21 +210,22 @@ export default function DashboardPage() {
               notifications.map((n) => (
                 <div key={n.id} className="flex items-center justify-between p-4 rounded-2xl bg-white hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group relative">
                   <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "p-3 rounded-2xl transition-colors",
-                      n.type === 'expense' ? "bg-red-50 text-red-500" : 
-                      n.type === 'member' ? "bg-blue-50 text-blue-500" : 
-                      "bg-amber-50 text-amber-500"
-                    )}>
-                      {n.type === 'expense' ? <CreditCard className="w-5 h-5" /> : 
-                       n.type === 'member' ? <User className="w-5 h-5" /> : 
-                       <Bell className="w-5 h-5" />}
-                    </div>
+                    <Avatar className="w-10 h-10 rounded-xl">
+                      <AvatarImage src={n.memberPhoto} />
+                      <AvatarFallback className={cn(
+                        "rounded-xl",
+                        n.type === 'expense' ? "bg-red-50 text-red-500" : 
+                        n.type === 'member' ? "bg-blue-50 text-blue-500" : 
+                        "bg-amber-50 text-amber-500"
+                      )}>
+                        {n.memberName?.charAt(0) || <Sparkles className="w-4 h-4" />}
+                      </AvatarFallback>
+                    </Avatar>
                     <div>
                       <p className="font-bold text-slate-800 text-sm">{n.message}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
-                          {n.createdByName ? `by ${n.createdByName}` : "System"}
+                          {n.memberName || "System"}
                         </span>
                         <span className="text-slate-200 text-[10px]">•</span>
                         <p className="text-[10px] text-muted-foreground uppercase font-medium">{format(n.timestamp, "MMM d, p")}</p>

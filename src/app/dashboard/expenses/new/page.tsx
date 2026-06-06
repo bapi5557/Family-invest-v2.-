@@ -79,16 +79,17 @@ export default function NewExpensePage() {
 
     addDoc(collection(db, "expenses"), expenseData)
       .then(() => {
-        const memberName = members?.find(m => m.id === memberId)?.name || user.displayName || "Someone";
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const memberName = user.displayName || "Family Member";
+        const formattedAmount = parseFloat(amount).toLocaleString('en-IN');
         createNotification(
           db, 
           effectiveOwnerId, 
-          `${memberName} added ₹${parseFloat(amount).toLocaleString('en-IN')} for ${finalCategory} at ${timeStr}`,
+          `${memberName} added ₹${formattedAmount} for ${finalCategory}`,
           'expense',
           description.trim(),
           user.uid,
-          user.displayName || "Family Member"
+          memberName,
+          user.photoURL || ""
         );
       })
       .catch(async (serverError) => {

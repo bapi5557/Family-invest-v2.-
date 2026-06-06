@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode, ShieldCheck, Plus as PlusIcon, Sparkles } from "lucide-react";
+import { Key, Bell, Shield, Database, Smartphone, LogOut, Lock, Mail, CheckCircle2, Loader2, Download, UserPlus, Copy, Trash2, Clock, QrCode, ShieldCheck, Plus as PlusIcon, Sparkles, User } from "lucide-react";
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, setDoc, collection, query, where, addDoc, updateDoc } from "firebase/firestore";
-import { updateEmail, updatePassword, signOut } from "firebase/auth";
+import { updateEmail, updatePassword, signOut, updateProfile } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { FamilySettings, Invite } from "@/lib/types";
@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const [newEmail, setNewEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [adminPin, setAdminPin] = useState("");
   const [canExport, setCanExport] = useState(true);
@@ -56,7 +57,10 @@ export default function SettingsPage() {
   }, [invites]);
 
   useEffect(() => {
-    if (user) setNewEmail(user.email || "");
+    if (user) {
+      setNewEmail(user.email || "");
+      setDisplayName(user.displayName || "");
+    }
     if (settings) {
       setAdminPin(settings.adminPin);
       setCanExport(settings.canExport ?? true);
@@ -122,8 +126,9 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       if (newEmail !== auth.currentUser.email) await updateEmail(auth.currentUser, newEmail);
+      if (displayName !== auth.currentUser.displayName) await updateProfile(auth.currentUser, { displayName });
       if (newPassword) await updatePassword(auth.currentUser, newPassword);
-      toast({ title: "Account Updated" });
+      toast({ title: "Profile & Account Updated" });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Action Required", description: "Please re-login to update security credentials." });
     } finally {
@@ -237,24 +242,34 @@ export default function SettingsPage() {
           <Card className="rounded-[2rem] shadow-lg border-none overflow-hidden">
             <CardHeader className="bg-slate-50 border-b p-8">
               <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-primary" />
+                <User className="w-5 h-5 text-primary" />
                 <div>
-                  <CardTitle className="font-headline">Login Credentials</CardTitle>
-                  <CardDescription>Update shared family email and password.</CardDescription>
+                  <CardTitle className="font-headline">Personal Profile</CardTitle>
+                  <CardDescription>Update your member name used for attribution.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="grid gap-2">
-                <Label htmlFor="email" className="text-xs uppercase font-bold text-slate-400">Shared Family Email</Label>
+                <Label htmlFor="displayName" className="text-xs uppercase font-bold text-slate-400">Your Member Name</Label>
+                <Input 
+                  id="displayName" 
+                  placeholder="e.g. Father, Mother, Bapi" 
+                  value={displayName} 
+                  onChange={(e) => setDisplayName(e.target.value)} 
+                  className="h-12 rounded-xl border-slate-200" 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email" className="text-xs uppercase font-bold text-slate-400">Login Email</Label>
                 <Input id="email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-12 rounded-xl border-slate-200" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="pass" className="text-xs uppercase font-bold text-slate-400">New Shared Password</Label>
+                <Label htmlFor="pass" className="text-xs uppercase font-bold text-slate-400">New Password</Label>
                 <Input id="pass" type="password" placeholder="Leave blank to keep current" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-12 rounded-xl border-slate-200" />
               </div>
               <Button className="w-full h-12 rounded-xl shadow-lg" onClick={handleUpdateAccount} disabled={loading}>
-                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Save Shared Changes"}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : "Save Changes"}
               </Button>
             </CardContent>
           </Card>

@@ -9,8 +9,9 @@ export function createNotification(
   message: string,
   type: NotificationType,
   details: string = "",
-  createdBy: string = "",
-  createdByName: string = ""
+  memberId: string = "",
+  memberName: string = "",
+  memberPhoto: string = ""
 ) {
   if (!db || !ownerId) return;
 
@@ -22,8 +23,9 @@ export function createNotification(
     ownerId,
     readBy: [],
     hiddenBy: [],
-    createdBy,
-    createdByName,
+    memberId,
+    memberName,
+    memberPhoto,
   };
 
   addDoc(collection(db, 'notifications'), notificationData)

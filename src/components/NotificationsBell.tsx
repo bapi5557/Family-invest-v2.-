@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function NotificationsBell() {
   const { user } = useUser();
@@ -37,8 +38,6 @@ export function NotificationsBell() {
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId || loadingSettings) return null;
-    // We simplified this query to avoid needing a composite index on ownerId + timestamp.
-    // Instead, we fetch the latest 50 and filter/sort client-side.
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
@@ -70,13 +69,6 @@ export function NotificationsBell() {
         const nRef = doc(db, "notifications", n.id);
         updateDoc(nRef, {
           readBy: arrayUnion(user.uid)
-        }).catch(async (serverError) => {
-          const err = new FirestorePermissionError({ 
-            path: nRef.path, 
-            operation: 'update',
-            requestResourceData: { readBy: [user.uid] }
-          });
-          errorEmitter.emit('permission-error', err);
         });
       }
     });
@@ -87,13 +79,6 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       readBy: arrayUnion(user.uid)
-    }).catch(async (serverError) => {
-      const err = new FirestorePermissionError({ 
-        path: nRef.path, 
-        operation: 'update',
-        requestResourceData: { readBy: [user.uid] }
-      });
-      errorEmitter.emit('permission-error', err);
     });
   };
 
@@ -103,13 +88,6 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       hiddenBy: arrayUnion(user.uid)
-    }).catch(async (serverError) => {
-      const err = new FirestorePermissionError({ 
-        path: nRef.path, 
-        operation: 'update',
-        requestResourceData: { hiddenBy: [user.uid] }
-      });
-      errorEmitter.emit('permission-error', err);
     });
     toast({ title: "Notification Hidden", description: "This will no longer show for you." });
   };
@@ -118,10 +96,7 @@ export function NotificationsBell() {
     e.stopPropagation();
     if (!db || !isAdmin) return;
     const nRef = doc(db, "notifications", id);
-    deleteDoc(nRef).catch(async (serverError) => {
-      const err = new FirestorePermissionError({ path: nRef.path, operation: 'delete' });
-      errorEmitter.emit('permission-error', err);
-    });
+    deleteDoc(nRef);
     toast({ variant: "destructive", title: "Activity Deleted", description: "Removed for the entire family." });
   };
 
@@ -170,20 +145,23 @@ export function NotificationsBell() {
                 onClick={() => markAsRead(n.id)}
               >
                 <div className="flex items-center gap-2 pr-12">
-                   <div className={cn(
-                     "p-1.5 rounded-lg",
-                     n.type === 'expense' ? "bg-red-50 text-red-500" : 
-                     n.type === 'member' ? "bg-blue-50 text-blue-500" : 
-                     "bg-amber-50 text-amber-500"
-                   )}>
-                     {getTypeIcon(n.type)}
-                   </div>
+                   <Avatar className="w-6 h-6 rounded-lg">
+                     <AvatarImage src={n.memberPhoto} />
+                     <AvatarFallback className={cn(
+                       "text-[10px] rounded-lg",
+                       n.type === 'expense' ? "bg-red-50 text-red-500" : 
+                       n.type === 'member' ? "bg-blue-50 text-blue-500" : 
+                       "bg-amber-50 text-amber-500"
+                     )}>
+                       {n.memberName?.charAt(0) || <Sparkles className="w-3 h-3" />}
+                     </AvatarFallback>
+                   </Avatar>
                    <p className="text-xs font-bold text-slate-800 leading-tight">{n.message}</p>
                 </div>
                 
                 <div className="flex items-center gap-2 mt-1 ml-8 text-[9px]">
                   <span className="text-slate-400 font-bold uppercase tracking-tighter">
-                    {n.createdByName ? `by ${n.createdByName}` : "System"}
+                    {n.memberName || "System"}
                   </span>
                   <span className="text-slate-200">•</span>
                   <div className="flex items-center gap-1 text-slate-300">

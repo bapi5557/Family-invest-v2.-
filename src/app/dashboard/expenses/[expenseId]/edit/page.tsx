@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,10 +19,11 @@ import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { doc, updateDoc, collection, query, where } from "firebase/firestore";
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { EXPENSE_CATEGORIES, ExpenseCategory, Expense, FamilyMember } from "@/lib/types";
+import { EXPENSE_CATEGORIES, ExpenseCategory, Expense, FamilyMember, FamilySettings } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
+import { createNotification } from "@/lib/notifications-service";
 
 export default function EditExpensePage() {
   const { expenseId } = useParams();
@@ -36,6 +38,14 @@ export default function EditExpensePage() {
   const [memberId, setMemberId] = useState("unassigned");
   const [dateStr, setDateStr] = useState("");
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, "settings", user.uid);
+  }, [db, user]);
+  
+  const { data: settings } = useDoc<FamilySettings>(settingsRef);
+  const effectiveOwnerId = settings?.familyOwnerId || user?.uid;
+
   const expenseRef = useMemoFirebase(() => {
     if (!db || !expenseId) return null;
     return doc(db, "expenses", expenseId as string);
@@ -44,9 +54,9 @@ export default function EditExpensePage() {
   const { data: expense, loading: loadingExpense } = useDoc<Expense>(expenseRef);
 
   const membersQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(collection(db, "members"), where("ownerId", "==", user.uid));
-  }, [db, user]);
+    if (!db || !effectiveOwnerId) return null;
+    return query(collection(db, "members"), where("ownerId", "==", effectiveOwnerId));
+  }, [db, effectiveOwnerId]);
 
   const { data: members } = useCollection<FamilyMember>(membersQuery);
 
@@ -62,7 +72,7 @@ export default function EditExpensePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!db || !expenseId) return;
+    if (!db || !expenseId || !user || !effectiveOwnerId) return;
 
     const updateData = {
       category,
@@ -74,8 +84,20 @@ export default function EditExpensePage() {
 
     const docRef = doc(db, "expenses", expenseId as string);
 
-    // NON-BLOCKING for speed
     updateDoc(docRef, updateData)
+      .then(() => {
+        const memberName = user.displayName || "Family Member";
+        createNotification(
+          db, 
+          effectiveOwnerId, 
+          `${memberName} edited ₹${parseFloat(amount).toLocaleString('en-IN')} for ${category}`,
+          'expense',
+          description,
+          user.uid,
+          memberName,
+          user.photoURL || ""
+        );
+      })
       .catch(async (serverError) => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,

@@ -126,8 +126,9 @@ export interface FamilyNotification {
   ownerId: string;
   readBy: string[];
   hiddenBy: string[];
-  createdBy: string;
-  createdByName: string;
+  memberId: string;
+  memberName: string;
+  memberPhoto: string;
 }
 
 export const DEFAULT_EXPENSE_CATEGORIES: { label: ExpenseCategory; icon: LucideIcon }[] = [

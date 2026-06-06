@@ -90,15 +90,16 @@ export function ReminderMonitor() {
     
     // Log as a Family Activity
     if (db && effectiveOwnerId) {
-      const timeStr = format(new Date(), "h:mm a");
+      const memberName = user?.displayName || "System";
       createNotification(
         db,
         effectiveOwnerId,
-        `Reminder Alert: "${reminder.title}" is due now!`,
+        `Reminder Alert: "${reminder.title}" is due!`,
         'reminder',
         reminder.description,
         user?.uid || "system",
-        user?.displayName || "System"
+        memberName,
+        user?.photoURL || ""
       );
 
       // Mark as triggered in DB to prevent duplicate alerts on other devices
