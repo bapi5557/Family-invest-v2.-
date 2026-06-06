@@ -141,15 +141,17 @@ export function ReminderMonitor() {
   return (
     <Dialog open={!!currentTrigger} onOpenChange={(open) => !open && setCurrentTrigger(null)}>
       <DialogContent className="rounded-[2.5rem] max-w-sm border-none shadow-2xl p-0 overflow-hidden">
-        <div className="bg-primary p-8 text-white text-center space-y-4">
+        <DialogHeader className="bg-primary p-8 text-white text-center space-y-4">
           <div className="w-16 h-16 bg-white/20 rounded-[2rem] flex items-center justify-center mx-auto animate-bounce">
             <Bell className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-2xl font-headline font-bold">Reminder Alert</h2>
-            <p className="text-primary-foreground/70 text-xs font-black uppercase tracking-widest">Happening Now</p>
+            <DialogTitle className="text-2xl font-headline font-bold">Reminder Alert</DialogTitle>
+            <DialogDescription className="text-primary-foreground/70 text-xs font-black uppercase tracking-widest">
+              Happening Now
+            </DialogDescription>
           </div>
-        </div>
+        </DialogHeader>
         
         <div className="p-8 space-y-6">
           <div className="text-center space-y-2">
