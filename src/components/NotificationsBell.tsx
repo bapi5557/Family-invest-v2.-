@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, limit, doc, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
-import { Notification, FamilySettings } from "@/lib/types";
+import { FamilyNotification, FamilySettings } from "@/lib/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +46,7 @@ export function NotificationsBell() {
     );
   }, [db, effectiveOwnerId, loadingSettings]);
 
-  const { data: rawNotifications, loading } = useCollection<Notification>(notificationsQuery);
+  const { data: rawNotifications, loading } = useCollection<FamilyNotification>(notificationsQuery);
 
   const notifications = useMemo(() => {
     if (!rawNotifications || !user) return [];
@@ -70,7 +70,7 @@ export function NotificationsBell() {
         const nRef = doc(db, "notifications", n.id);
         updateDoc(nRef, {
           readBy: arrayUnion(user.uid)
-        }).catch(async () => {
+        }).catch(async (serverError) => {
           const err = new FirestorePermissionError({ 
             path: nRef.path, 
             operation: 'update',
@@ -87,7 +87,7 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       readBy: arrayUnion(user.uid)
-    }).catch(async () => {
+    }).catch(async (serverError) => {
       const err = new FirestorePermissionError({ 
         path: nRef.path, 
         operation: 'update',
@@ -103,7 +103,7 @@ export function NotificationsBell() {
     const nRef = doc(db, "notifications", id);
     updateDoc(nRef, {
       hiddenBy: arrayUnion(user.uid)
-    }).catch(async () => {
+    }).catch(async (serverError) => {
       const err = new FirestorePermissionError({ 
         path: nRef.path, 
         operation: 'update',
@@ -118,7 +118,7 @@ export function NotificationsBell() {
     e.stopPropagation();
     if (!db || !isAdmin) return;
     const nRef = doc(db, "notifications", id);
-    deleteDoc(nRef).catch(async () => {
+    deleteDoc(nRef).catch(async (serverError) => {
       const err = new FirestorePermissionError({ path: nRef.path, operation: 'delete' });
       errorEmitter.emit('permission-error', err);
     });

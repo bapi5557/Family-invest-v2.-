@@ -8,7 +8,7 @@ import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, 
 import Link from "next/link";
 import { collection, query, where, doc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { Expense, FamilyMember, FamilySettings, Reminder, Notification } from "@/lib/types";
+import { Expense, FamilyMember, FamilySettings, Reminder, FamilyNotification } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -75,8 +75,7 @@ export default function DashboardPage() {
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!db || !effectiveOwnerId || loadingSettings) return null;
-    // Simplified query to avoid composite index requirement. 
-    // We fetch a larger batch and filter client-side.
+    // Client-side filtering for timestamp to avoid composite index requirements
     return query(
       collection(db, "notifications"),
       where("ownerId", "==", effectiveOwnerId),
@@ -87,7 +86,7 @@ export default function DashboardPage() {
   const { data: allExpenses, loading: loadingExp } = useCollection<Expense>(allExpensesQuery);
   const { data: members, loading: loadingMembers } = useCollection<FamilyMember>(membersQuery);
   const { data: upcomingReminders, loading: loadingReminders } = useCollection<Reminder>(upcomingRemindersQuery);
-  const { data: rawNotifications, loading: loadingNotifications } = useCollection<Notification>(notificationsQuery);
+  const { data: rawNotifications, loading: loadingNotifications } = useCollection<FamilyNotification>(notificationsQuery);
 
   const notifications = useMemo(() => {
     if (!rawNotifications || !user) return [];
@@ -110,7 +109,7 @@ export default function DashboardPage() {
       .map(([category, amount]) => ({
         category,
         amount,
-        percentage: (amount / totalSpent) * 100
+        percentage: totalSpent > 0 ? (amount / totalSpent) * 100 : 0
       }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);

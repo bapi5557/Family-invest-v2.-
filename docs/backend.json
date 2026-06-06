@@ -87,7 +87,7 @@
         "completed": { "type": "boolean" },
         "ownerId": { "type": "string" },
         "createdBy": { "type": "string" },
-        "createdAt": { "number": "number" }
+        "createdAt": { "type": "number" }
       },
       "required": ["title", "date", "category", "priority", "ownerId"]
     },

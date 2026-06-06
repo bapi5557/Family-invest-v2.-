@@ -115,7 +115,7 @@ export interface Invite {
   revoked: boolean;
 }
 
-export interface Notification {
+export interface FamilyNotification {
   id: string;
   message: string;
   details: string;
