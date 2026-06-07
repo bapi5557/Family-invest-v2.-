@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, ArrowLeft, Loader2, Share2, Filter, Wallet, ArrowUpRight } from "lucide-react";
+import { Plus, Search, ArrowLeft, Loader2, Share2, Filter, Wallet, ArrowUpRight, Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
@@ -65,6 +65,11 @@ export default function AllExpensesPage() {
               <Share2 className="w-4 h-4 mr-2" /> Share Ledger
             </Button>
           )}
+          <Button variant="outline" size="sm" className="rounded-xl h-10 px-4 border-accent text-accent hover:bg-accent/5" asChild>
+            <Link href="/dashboard/expenses/scan">
+              <Camera className="w-4 h-4 mr-2" /> AI Scan
+            </Link>
+          </Button>
           <Button size="sm" className="rounded-xl h-10 px-4 shadow-md" asChild>
             <Link href="/dashboard/expenses/new">
               <Plus className="w-4 h-4 mr-2" /> New Record

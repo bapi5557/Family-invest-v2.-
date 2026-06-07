@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Save, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Plus, Camera, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { collection, addDoc, query, where, doc } from "firebase/firestore";
 import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from "@/firebase";
@@ -110,9 +110,16 @@ export default function NewExpensePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        </Link>
+        <Button variant="outline" className="rounded-xl border-accent text-accent hover:bg-accent/5 h-10 px-4" asChild>
+          <Link href="/dashboard/expenses/scan">
+            <Camera className="w-4 h-4 mr-2" /> Scan Receipt <Sparkles className="w-3 h-3 ml-1 fill-accent" />
+          </Link>
+        </Button>
+      </div>
 
       <Card className="rounded-[2.5rem] shadow-2xl overflow-hidden border-none">
         <CardHeader className="bg-accent text-white p-10">

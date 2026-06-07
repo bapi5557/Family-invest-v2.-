@@ -42,7 +42,8 @@
         "date": { "type": "number", "description": "Date of expense (timestamp)." },
         "memberId": { "type": "string", "description": "Reference to a family member." },
         "ownerId": { "type": "string", "description": "The UID of the shared family account owner." },
-        "createdAt": { "type": "number", "description": "Timestamp of record creation." }
+        "createdAt": { "type": "number", "description": "Timestamp of record creation." },
+        "receiptUrl": { "type": "string", "description": "URL to the scanned receipt image in Firebase Storage." }
       },
       "required": ["category", "amount", "date", "ownerId", "createdAt"]
     },
@@ -87,7 +88,8 @@
         "completed": { "type": "boolean" },
         "ownerId": { "type": "string" },
         "createdBy": { "type": "string" },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "triggeredAt": { "type": "number" }
       },
       "required": ["title", "date", "category", "priority", "ownerId"]
     },
@@ -117,8 +119,9 @@
         "ownerId": { "type": "string" },
         "readBy": { "type": "array", "items": { "type": "string" } },
         "hiddenBy": { "type": "array", "items": { "type": "string" } },
-        "createdBy": { "type": "string" },
-        "createdByName": { "type": "string" }
+        "memberId": { "type": "string" },
+        "memberName": { "type": "string" },
+        "memberPhoto": { "type": "string" }
       },
       "required": ["message", "type", "timestamp", "ownerId"]
     }
@@ -153,7 +156,7 @@
     },
     "/notifications/{notificationId}": {
       "schema": "Notification",
-      "description": "Family activity notifications. Shared READ/LIST and UPDATE access allowed for authenticated family members where notification.ownerId matches their settings.familyOwnerId or their own UID. This allows all family members to mark as read or hide. Only Admins (original owner) can delete."
+      "description": "Family activity notifications. Shared access allowed for authenticated family members where notification.ownerId matches their familyOwnerId or their own UID. Only original owner can delete."
     }
   }
 }

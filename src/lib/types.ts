@@ -70,6 +70,7 @@ export interface Expense {
   date: number;
   createdAt: number;
   ownerId: string;
+  receiptUrl?: string;
 }
 
 export interface Income {
@@ -96,7 +97,7 @@ export interface Reminder {
   ownerId: string;
   createdBy: string;
   createdAt: number;
-  triggeredAt?: number;
+  triggeredAt?: number | null;
 }
 
 export interface FamilySettings {
