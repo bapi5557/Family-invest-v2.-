@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Expense } from "@/lib/types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ReportsPage() {
   const [aiReport, setAiReport] = useState<MonthlyExpenseEfficiencySummaryOutput | null>(null);
@@ -189,21 +190,25 @@ export default function ReportsPage() {
               <CardTitle className="font-headline text-2xl">Category Distribution</CardTitle>
               <CardDescription>Visual breakdown of monthly resource allocation</CardDescription>
             </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              {categoryBreakdown.map((item) => (
-                <div key={item.category} className="space-y-2">
-                  <div className="flex justify-between text-sm items-center">
-                    <span className="font-bold text-slate-700">{item.category}</span>
-                    <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} — {item.percentage.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
+            <CardContent className="p-0">
+              <ScrollArea className="max-h-[600px] p-8">
+                <div className="space-y-6">
+                  {categoryBreakdown.map((item) => (
+                    <div key={item.category} className="space-y-2">
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="font-bold text-slate-700">{item.category}</span>
+                        <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} — {item.percentage.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
+                    </div>
+                  ))}
+                  {categoryBreakdown.length === 0 && (
+                    <div className="text-center py-12 text-slate-400 font-medium">
+                      No data points captured for this period.
+                    </div>
+                  )}
                 </div>
-              ))}
-              {categoryBreakdown.length === 0 && (
-                <div className="text-center py-12 text-slate-400 font-medium">
-                  No data points captured for this period.
-                </div>
-              )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>

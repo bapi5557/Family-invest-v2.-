@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -111,8 +112,7 @@ export default function DashboardPage() {
         amount,
         percentage: totalSpent > 0 ? (amount / totalSpent) * 100 : 0
       }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
+      .sort((a, b) => b.amount - a.amount);
   }, [allExpenses, totalSpent]);
 
   const hideNotification = (id: string) => {
@@ -251,23 +251,28 @@ export default function DashboardPage() {
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">
           <CardHeader className="p-6 border-b bg-slate-50/50">
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-accent" /> Top Outflows
+              <PieChart className="w-5 h-5 text-accent" /> Household Spending Breakdown
             </CardTitle>
+            <CardDescription className="text-[10px] uppercase font-bold tracking-widest mt-1">All Recorded Outflows</CardDescription>
           </CardHeader>
-          <CardContent className="p-8 space-y-6">
-            {categoryBreakdown.length > 0 ? (
-              categoryBreakdown.map((item) => (
-                <div key={item.category} className="space-y-2">
-                  <div className="flex justify-between text-sm items-center">
-                    <span className="font-bold text-slate-700">{item.category}</span>
-                    <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN')} — {item.percentage.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
-                </div>
-              ))
-            ) : (
-              <div className="py-12 text-center text-slate-400 font-medium">No spending data to visualize.</div>
-            )}
+          <CardContent className="p-0">
+            <ScrollArea className="h-[400px] p-8">
+              <div className="space-y-6">
+                {categoryBreakdown.length > 0 ? (
+                  categoryBreakdown.map((item) => (
+                    <div key={item.category} className="space-y-2">
+                      <div className="flex justify-between text-sm items-center">
+                        <span className="font-bold text-slate-700">{item.category}</span>
+                        <span className="font-mono text-muted-foreground">₹{item.amount.toLocaleString('en-IN')} — {item.percentage.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={item.percentage} className="h-2 rounded-full bg-slate-100" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-12 text-center text-slate-400 font-medium">No spending data to visualize.</div>
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
