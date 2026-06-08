@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, Trash2, PieChart, User, Sparkles } from "lucide-react";
+import { Plus, Wallet, CreditCard, ChevronRight, ShieldCheck, Loader2, Bell, X, Trash2, PieChart, User, Sparkles, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { collection, query, where, doc, limit, updateDoc, arrayUnion, deleteDoc } from "firebase/firestore";
 import { useCollection, useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
@@ -26,6 +25,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DailySpendingAnalytics } from "@/components/DailySpendingAnalytics";
 import { cn } from "@/lib/utils";
 
 const formatCurrencyVal = (val: number) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
@@ -194,6 +194,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DailySpendingAnalytics expenses={allExpenses || []} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden">

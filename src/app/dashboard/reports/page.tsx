@@ -1,16 +1,16 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2, TrendingDown, BarChart2 } from "lucide-react";
+import { FileDown, Share2, Sparkles, CheckCircle2, PieChart, Loader2, TrendingDown, BarChart2, TrendingUp } from "lucide-react";
 import { monthlyExpenseEfficiencySummary, MonthlyExpenseEfficiencySummaryOutput } from "@/ai/flows/monthly-expense-efficiency-summary";
 import { Progress } from "@/components/ui/progress";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { Expense } from "@/lib/types";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DailySpendingAnalytics } from "@/components/DailySpendingAnalytics";
 
 export default function ReportsPage() {
   const [aiReport, setAiReport] = useState<MonthlyExpenseEfficiencySummaryOutput | null>(null);
@@ -18,8 +18,6 @@ export default function ReportsPage() {
   const db = useFirestore();
   const { user } = useUser();
 
-  // Optimization: Removed orderBy("date") to avoid composite index requirement
-  // which can trigger permission errors if the index doesn't exist.
   const expensesQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -30,7 +28,6 @@ export default function ReportsPage() {
 
   const { data: rawExpenses, loading: loadingExpenses } = useCollection<Expense>(expensesQuery);
 
-  // Handle sorting and calculation in memory
   const expenses = useMemo(() => {
     if (!rawExpenses) return [];
     return [...rawExpenses].sort((a, b) => b.date - a.date);
@@ -86,7 +83,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline text-primary">Financial Intelligence</h1>
@@ -104,6 +101,8 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <DailySpendingAnalytics expenses={expenses} />
+
           <Card className="border-none shadow-2xl rounded-[2rem] overflow-hidden bg-accent/5">
             <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
               <CardTitle className="font-headline text-accent flex items-center text-2xl">
