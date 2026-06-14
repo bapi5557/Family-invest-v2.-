@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -17,14 +15,14 @@ import { Button } from "@/components/ui/button";
 import { 
   format, 
   subDays, 
+  addDays,
   eachDayOfInterval, 
   isSameDay, 
   startOfDay, 
   endOfDay,
-  parseISO
 } from "date-fns";
 import { Expense } from "@/lib/types";
-import { TrendingUp, Calendar, ArrowUpRight, Target, Info } from "lucide-react";
+import { TrendingUp, ChevronLeft, ChevronRight, Info, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DailySpendingAnalyticsProps {
@@ -36,21 +34,30 @@ type RangeOption = "7D" | "30D" | "ALL";
 
 export function DailySpendingAnalytics({ expenses, className }: DailySpendingAnalyticsProps) {
   const [range, setRange] = useState<RangeOption>("7D");
+  const [baseDate, setBaseDate] = useState<Date>(new Date());
 
   const chartData = useMemo(() => {
     if (!expenses) return [];
 
-    const now = new Date();
-    let startDate = subDays(now, 6); // Default 7 days
-    if (range === "30D") startDate = subDays(now, 29);
-    if (range === "ALL") {
+    let startDate: Date;
+    let endDate: Date;
+
+    if (range === "7D") {
+      endDate = endOfDay(baseDate);
+      startDate = startOfDay(subDays(endDate, 6));
+    } else if (range === "30D") {
+      endDate = endOfDay(new Date());
+      startDate = startOfDay(subDays(endDate, 29));
+    } else {
+      // ALL Time
+      endDate = endOfDay(new Date());
       const oldest = expenses.length > 0 
         ? new Date(Math.min(...expenses.map(e => e.date))) 
-        : subDays(now, 30);
-      startDate = oldest;
+        : subDays(endDate, 30);
+      startDate = startOfDay(oldest);
     }
 
-    const days = eachDayOfInterval({ start: startOfDay(startDate), end: endOfDay(now) });
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     return days.map(day => {
       const dailyTotal = expenses
@@ -63,10 +70,10 @@ export function DailySpendingAnalytics({ expenses, className }: DailySpendingAna
         amount: dailyTotal,
       };
     });
-  }, [expenses, range]);
+  }, [expenses, range, baseDate]);
 
   const stats = useMemo(() => {
-    if (chartData.length === 0) return { avg: 0, max: 0 };
+    if (chartData.length === 0) return { avg: 0, max: 0, total: 0 };
     const amounts = chartData.map(d => d.amount);
     const sum = amounts.reduce((a, b) => a + b, 0);
     return {
@@ -75,6 +82,24 @@ export function DailySpendingAnalytics({ expenses, className }: DailySpendingAna
       total: sum
     };
   }, [chartData]);
+
+  const currentRangeLabel = useMemo(() => {
+    if (chartData.length < 2) return "...";
+    const first = chartData[0].date;
+    const last = chartData[chartData.length - 1].date;
+    const year = range === "ALL" ? "" : `, ${format(baseDate, "yyyy")}`;
+    return `${first} — ${last}${year}`;
+  }, [chartData, baseDate, range]);
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    setRange("7D");
+    setBaseDate(prev => direction === 'prev' ? subDays(prev, 7) : addDays(prev, 7));
+  };
+
+  const resetToToday = () => {
+    setBaseDate(new Date());
+    setRange("7D");
+  };
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -90,30 +115,69 @@ export function DailySpendingAnalytics({ expenses, className }: DailySpendingAna
 
   return (
     <Card className={cn("rounded-[2.5rem] border-none shadow-xl bg-white overflow-hidden", className)}>
-      <CardHeader className="p-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <CardTitle className="font-headline text-2xl flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-primary" /> Daily Outflow Timeline
-          </CardTitle>
-          <CardDescription className="font-medium">Tracking household liquidity fluctuations</CardDescription>
+      <CardHeader className="p-8 pb-4 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-primary" /> Daily Outflow Timeline
+            </CardTitle>
+            <CardDescription className="font-medium">Tracking household liquidity fluctuations</CardDescription>
+          </div>
+          <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl w-fit">
+            {(["7D", "30D", "ALL"] as const).map((r) => (
+              <Button
+                key={r}
+                variant={range === r ? "default" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setRange(r);
+                  if (r !== "7D") setBaseDate(new Date());
+                }}
+                className={cn(
+                  "h-8 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  range === r ? "shadow-md" : "text-slate-500 hover:text-primary"
+                )}
+              >
+                {r === "7D" ? "1 Week" : r === "30D" ? "1 Month" : "All Time"}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl w-fit">
-          {(["7D", "30D", "ALL"] as const).map((r) => (
-            <Button
-              key={r}
-              variant={range === r ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setRange(r)}
-              className={cn(
-                "h-8 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                range === r ? "shadow-md" : "text-slate-500 hover:text-primary"
-              )}
+
+        <div className="flex items-center justify-between bg-slate-50/80 p-2 rounded-2xl border border-slate-100">
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-10 w-10 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+              onClick={() => navigateWeek('prev')}
             >
-              {r === "7D" ? "1 Week" : r === "30D" ? "1 Month" : "All Time"}
+              <ChevronLeft className="w-5 h-5 text-slate-600" />
             </Button>
-          ))}
+            <div className="px-4 flex flex-col">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Period</p>
+              <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Calendar className="w-3.5 h-3.5 text-primary/40" />
+                {currentRangeLabel}
+              </p>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-10 w-10 rounded-xl hover:bg-white hover:shadow-sm transition-all"
+              onClick={() => navigateWeek('next')}
+            >
+              <ChevronRight className="w-5 h-5 text-slate-600" />
+            </Button>
+          </div>
+          {range === "7D" && !isSameDay(baseDate, new Date()) && (
+            <Button variant="link" size="sm" className="text-[10px] font-black uppercase text-primary h-8" onClick={resetToToday}>
+              Back to Today
+            </Button>
+          )}
         </div>
       </CardHeader>
+      
       <CardContent className="p-8 pt-2 space-y-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -161,7 +225,7 @@ export function DailySpendingAnalytics({ expenses, className }: DailySpendingAna
                 strokeWidth={3}
                 fillOpacity={1} 
                 fill="url(#colorAmount)" 
-                animationDuration={1500}
+                animationDuration={1000}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -169,7 +233,7 @@ export function DailySpendingAnalytics({ expenses, className }: DailySpendingAna
 
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium bg-amber-50 p-3 rounded-xl border border-amber-100/50">
           <Info className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <p>This graph aggregates all recorded expenses from all family members to show total daily household spending.</p>
+          <p>This graph aggregates all recorded expenses from all family members for the selected period.</p>
         </div>
       </CardContent>
     </Card>
