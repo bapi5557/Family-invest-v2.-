@@ -1,60 +1,37 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow for extracting expense data from receipt images or handwritten notes.
+ * @fileOverview High-sensitivity expense extraction flow.
  *
- * - scanReceipt - A function that handles the AI vision extraction process.
- * - ScanReceiptInput - The input type for the scanReceipt function.
- * - ScanReceiptOutput - The return type for the scanReceipt function.
+ * - scanReceipt - Direct multimodal OCR extraction for handwritten and printed ledgers.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const ScanReceiptInputSchema = z.object({
-  photoDataUri: z
-    .string()
-    .describe(
-      "A photo of a receipt or handwritten expense note, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-});
-export type ScanReceiptInput = z.infer<typeof ScanReceiptInputSchema>;
-
 const ExtractedExpenseItemSchema = z.object({
-  category: z.string().describe('The predicted expense category from the ledger list.'),
-  amount: z.number().describe('The identified amount spent.'),
-  description: z.string().describe('A brief summary of what was purchased.'),
-  date: z.number().describe('The timestamp of the expense (use current if not found).'),
+  category: z.string().describe('Predicted category (e.g. Petrol, Groceries, Food).'),
+  amount: z.number().describe('Numeric amount found.'),
+  description: z.string().describe('Short summary of the item.'),
+  date: z.number().describe('Timestamp of the expense.'),
 });
 
 const ScanReceiptOutputSchema = z.object({
-  expenses: z.array(ExtractedExpenseItemSchema).describe('An array of identified expense items from the image.'),
-  isReceipt: z.boolean().describe('Whether the image was identified as a valid expense record.'),
-  summary: z.string().describe('A friendly AI summary of the scan.'),
+  expenses: z.array(ExtractedExpenseItemSchema).describe('All identified expense items.'),
+  isReceipt: z.boolean().describe('Set to true if any text resembling an expense was found.'),
+  summary: z.string().describe('Short AI feedback about what was found.'),
 });
-export type ScanReceiptOutput = z.infer<typeof ScanReceiptOutputSchema>;
 
-export async function scanReceipt(input: ScanReceiptInput): Promise<ScanReceiptOutput> {
+const ScanReceiptInputSchema = z.object({
+  photoDataUri: z.string().describe("A photo of a receipt or note as a data URI."),
+});
+
+/**
+ * Extracts expense items from an image using Gemini Flash.
+ */
+export async function scanReceipt(input: z.infer<typeof ScanReceiptInputSchema>): Promise<z.infer<typeof ScanReceiptOutputSchema>> {
   return scanReceiptFlow(input);
 }
-
-const prompt = ai.definePrompt({
-  name: 'scanReceiptPrompt',
-  input: { schema: ScanReceiptInputSchema },
-  output: { schema: ScanReceiptOutputSchema },
-  prompt: `You are an expert AI Ledger Assistant for a family.
-Your task is to analyze the provided image, which could be a printed store receipt or a handwritten list of household expenses.
-
-Instructions:
-1. Identify all individual expense items.
-2. Extract the amount spent for each.
-3. Categorize each item into standard household categories (e.g., Groceries, Petrol, Food, Medicines, Electricity Bill, Entertainment).
-4. Provide a clear description for each.
-5. If a date is visible, extract it as a timestamp. If not, use the current time ({{currentTime}}).
-6. If the image is not related to expenses, set isReceipt to false.
-
-Image: {{media url=photoDataUri}}`,
-});
 
 const scanReceiptFlow = ai.defineFlow(
   {
@@ -63,10 +40,50 @@ const scanReceiptFlow = ai.defineFlow(
     outputSchema: ScanReceiptOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt({
-      ...input,
-      currentTime: Date.now(),
+    // Using gemini-flash-latest alias for maximum stability and resolution of 404 errors
+    const result = await ai.generate({
+      model: 'googleai/gemini-flash-latest',
+      prompt: [
+        {
+          text: `You are an expert AI Ledger Assistant. 
+          Read the provided image and extract every single expense item you can find.
+          
+          CRITICAL INSTRUCTIONS:
+          1. Read ALL text, including handwritten notes like "500 petrol", "milk 40", or "shop 1200".
+          2. If the image contains a list, extract EACH line as a separate expense item.
+          3. For every item, identify:
+             - Amount: The numeric price.
+             - Category: Standard household category (Groceries, Petrol, Mobile, Food, etc).
+             - Description: A brief note of what it was.
+             - Date: EXPLICITLY look for any mentioned date in the handwriting or text (e.g. "12 Feb", "Jan 10", "15/01"). 
+                     If a date is found, convert it to a numeric timestamp. 
+                     If NO date is visible, use the current timestamp: ${Date.now()}.
+          4. Be extremely sensitive to handwriting. Extract even tiny scribbles if they look like money.
+          5. Set 'isReceipt' to true if you detected ANY valid expense information.`
+        },
+        {
+          media: {
+            url: input.photoDataUri,
+            contentType: 'image/jpeg'
+          }
+        }
+      ],
+      output: { schema: ScanReceiptOutputSchema },
+      config: {
+        temperature: 0, // 0 is critical for accurate OCR and data extraction
+        safetySettings: [
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ]
+      }
     });
-    return output!;
+
+    if (!result.output) {
+      throw new Error("AI could not process this image. Please try a clearer photo.");
+    }
+
+    return result.output;
   }
 );
